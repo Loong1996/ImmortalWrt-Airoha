@@ -175,7 +175,7 @@ details.faq .a{color:var(--c2);margin-top:.5rem}
     <div class="sec-head"><span class="ic i4"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span><h2>准备工作</h2></div>
     <p class="sec-sub" id="howto-check">如果系统还能正常进 OpenWrt 后台，SSH 上去执行 <code>cat /proc/mtd</code>：看到 <code>bl2</code> 和 <code>ubi</code> 两个分区名，说明已经是这个 U-Boot 了，直接看「日常使用」；看到 <code>bootloader</code> / <code>ubootenv</code>，或者 <code>nsb_1</code> / <code>romfile</code>，就是 tcboot 或原厂，走「首次迁移」。</p>
     <ul class="check">
-      <li><span class="box"></span><div><b>网线一根 + 一台电脑</b><div class="sub">只用来连这台路由器，不需要能上外网。网线到时候插 LAN 2~4，LAN 1 在 U-Boot 下无效。固件先在<a href="#files">上方</a>下好。页面按桌面浏览器设计，手机也能用。</div></div></li>
+      <li><span class="box"></span><div><b>网线一根 + 一台电脑</b><div class="sub">只用来连这台路由器，不需要能上外网。固件先在<a href="#files">上方</a>下好。页面按桌面浏览器设计，手机也能用。</div></div></li>
       <li><span class="box"></span><div><b>USB 转 TTL 串口模块<span class="only">仅首次迁移</span></b><div class="sub">3.3V 电平的那种（不是 RS232），CH340 一类都行，带 3 根杜邦线。之后日常用网页就不再需要它。</div></div></li>
       <li><span class="box"></span><div><b>支持 Xmodem 发送的串口终端<span class="only">仅首次迁移</span></b><div class="sub">Windows 上 MobaXterm、SecureCRT、Xshell 都自带「发送文件 → Xmodem」；macOS / Linux 用 <code>minicom</code>，或装 <code>lrzsz</code> 后在 <code>screen</code> 里用 <code>sx</code>。</div></div></li>
       <li><span class="box"></span><div><b>先做一次整机 flash 备份<span class="only">仅首次迁移</span></b><div class="sub">首次迁移会清空原厂分区，其中 <code>ri</code>（MAC / 序列号）和 <code>bosa</code>（光模块校准）是这台机器独有的、没有第二份。备份方法见 <a href="https://github.com/Loong1996/ImmortalWrt-Airoha/blob/main/docs/backup-and-restore.md" target="_blank" rel="noopener">原厂备份与刷回原厂</a>。备份的 <code>all_flash.bin</code> 以后能在网页里整片刷回原厂。</div></div></li>
@@ -260,7 +260,7 @@ Handing out DHCP leases from 192.168.1.1</div>
     <div class="steps">
       <div class="step"><span class="num"></span><div class="body">
         <h4>网线插好，浏览器打开 192.168.1.1</h4>
-        <p><b>进流水灯之后再插网线</b>，插 <b>LAN 2、3、4 任意一个</b>；<b>LAN 1 无效</b>——那是 2.5G 口，U-Boot 里没有它的驱动，插上去什么都不会发生。电脑设成<b>自动获取 IP</b>，分到 <code>192.168.1.100</code> 就说明插对了——U-Boot 里带了个迷你 DHCP 服务器，就是为了省掉手动配 IP 这一步。换了别的机型，哪个口有效不一定一样：流水灯亮着的时候逐个口试，哪个口能拿到这个 IP 就用哪个。</p>
+        <p><b>进流水灯之后再插网线</b>，插到任意网口（建议第 3 或第 4 个）。电脑设成<b>自动获取 IP</b>，会分到 <code>192.168.1.100</code>——U-Boot 里带了个迷你 DHCP 服务器，就是为了省掉手动配 IP 这一步。</p>
       </div></div>
       <div class="step"><span class="num"></span><div class="body">
         <h4>左栏选「引导升级」，三个格子都选好，打开「重建 UBI」</h4>
@@ -293,11 +293,11 @@ Handing out DHCP leases from 192.168.1.1</div>
     <p class="sec-sub">迁移完成之后，这个恢复页就一直带在路由器的 U-Boot 里。日常只用第一种方式就够了。</p>
     <div class="box"><table class="kv">
       <tr><th>什么时候</th><th>怎么进</th></tr>
-      <tr><td><b>想主动刷机 / 升级引导</b><span class="sub">不用串口</span></td><td>先上电，等 1~2 秒<b>后再</b>按住 reset，一直按着，等面板五个灯开始<b>流水</b>再松手（约 15 秒）。进流水灯之后再把网线插到 LAN 2~4</td></tr>
-      <tr><td><b>机器起不来了</b></td><td>什么都不用做——从 NAND 引导失败后会自己起网页，把网线插到 LAN 2~4 即可</td></tr>
+      <tr><td><b>想主动刷机 / 升级引导</b><span class="sub">不用串口</span></td><td>先上电，等 1~2 秒<b>后再</b>按住 reset，一直按着，等面板五个灯开始<b>流水</b>再松手（约 15 秒）。进流水灯之后再插网线</td></tr>
+      <tr><td><b>机器起不来了</b></td><td>什么都不用做——从 NAND 引导失败后会自己起网页，插上网线即可</td></tr>
       <tr><td><b>手上正好接着串口</b></td><td>引导菜单用 <kbd>↑</kbd><kbd>↓</kbd> 选到第 9 项 <code>Start web recovery server</code> 回车</td></tr>
     </table></div>
-    <p>三种方式进的是同一个服务。流水灯亮起来就是进去了，这时把网线插到 <b>LAN 2~4</b>（LAN 1 在 U-Boot 下无效），电脑自动获取到 <code>192.168.1.100</code> 之后，浏览器打开 <code>192.168.1.1</code>。换了机型就逐个口试，能拿到这个 IP 的口就是对的。</p>
+    <p>三种方式进的是同一个服务。流水灯亮起来就是进去了，这时插网线，浏览器打开 <code>192.168.1.1</code>。</p>
     <div class="note warn"><b>菜单第 8 项「Reset all settings to factory defaults」平时不要点。</b>它会连出厂 MAC 一起清掉——网页照样能开（会自动换随机 MAC），但真实 MAC 得靠<a href="#vol">「创建 UBI 卷」</a>把 <code>ri</code> 写回去。</div>
   </section>
 
@@ -409,8 +409,7 @@ Handing out DHCP leases from 192.168.1.1</div>
 
   <section id="faq">
     <div class="sec-head"><span class="ic i4"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 1-1 1.7M12 17h.01"/></svg></span><h2>常见问题</h2></div>
-    <details class="faq"><summary>面板灯在流水、串口也说服务起来了，但 192.168.1.1 打不开</summary><div class="a">先换个网口：LAN 1 在 U-Boot 里没有驱动，只有 LAN 2~4 有效；别的机型就逐个口试，电脑拿到 <code>192.168.1.100</code> 才算插对。再看串口那行 <code>Using … device, MAC …</code>。如果是 <code>ff:ff:ff:ff:ff:ff</code>，说明 <code>ri</code> 卷被擦空而 U-Boot 版本太老（0.1.0）；0.1.1 起会自动换随机 MAC。另外确认电脑是自动获取 IP 且拿到了 <code>192.168.1.100</code>，浏览器地址栏用 <code>http://</code> 不是 <code>https://</code>。</div></details>
-    <details class="faq"><summary>为什么网线插 LAN 1 没反应？</summary><div class="a">LAN 1 是 2.5G 口，走 SoC 的 GDM4 接外置 PHY EN8811H，这颗 PHY 每次上电都要先灌一份固件才能工作；U-Boot 里既没有这条通路的驱动，也不带那份固件。LAN 2~4 挂在 SoC 内置交换机上，U-Boot 只驱动这一个口，串口里 <code>Using airoha-gdm1 device</code> 说的就是它。进系统之后 LAN 1 一切正常，只是救砖时用不上。</div></details>
+    <details class="faq"><summary>面板灯在流水、串口也说服务起来了，但 192.168.1.1 打不开</summary><div class="a">先看串口那行 <code>Using … device, MAC …</code>。如果是 <code>ff:ff:ff:ff:ff:ff</code>，说明 <code>ri</code> 卷被擦空而 U-Boot 版本太老（0.1.0）；0.1.1 起会自动换随机 MAC。另外确认电脑是自动获取 IP 且拿到了 <code>192.168.1.100</code>，浏览器地址栏用 <code>http://</code> 不是 <code>https://</code>。</div></details>
     <details class="faq"><summary>已经刷过 preloader 和 fip 了，以后升级还要再传吗？要开「重建 UBI」吗？</summary><div class="a">不用。日常更新<b>只传固件</b>就够了，用「日常刷机」页。BL2 直接写 <code>mtd</code> 分区，U-Boot 只替换 UBI 里 <code>fip</code> 那一个卷，两者都不需要重建。「重建 UBI」只在<b>从别的布局第一次换过来</b>时才需要，日常开了就是把出厂 MAC 和所有设置清空重来。</div></details>
     <details class="faq"><summary>「重建 UBI」到底在干什么？</summary><div class="a">把 UBI 里现有的全部卷（包括出厂 MAC、U-Boot 环境）先擦掉，再重新建一个空的 UBI 分区去装新数据。只有旧的分区布局上本来就没有合法 UBI 结构时才需要。</div></details>
     <details class="faq"><summary>现在是原厂引导，想换成这个 U-Boot，要开「重建 UBI」吗？</summary><div class="a">要。原厂分区里同样没有合法的 UBI 结构，跟从 tcboot 迁移过来是完全一样的流程——照「首次迁移」做即可。</div></details>
