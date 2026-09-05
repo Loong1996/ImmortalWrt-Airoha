@@ -2,11 +2,16 @@ name: ImmortalWrt-Airoha
 
 # 让 Actions 列表直接显示本次选了什么，省得点进去翻日志里的 env 块。
 # 必须写成一行：折叠标量会把缩进更深的续行当字面量，在 ${{ }} 中间插进换行。
-run-name: "${{ inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || 'XG-040G-MD' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}"
+run-name: "${{ inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}"
 
 on:
   workflow_dispatch:
     inputs:
+      repo_branch:
+        description: '源码分支（Loong1996/immortalwrt）。留空即 master-airoha；填别的分支只作测试，会标成 pre-release、不更新选包索引'
+        required: false
+        default: 'master-airoha'
+        type: string
       device:
         description: '机型'
         required: true
@@ -55,8 +60,8 @@ env:
   EXTRA_PACKAGES: ${{ github.event.inputs.extra_packages }}
   PKG_VERSIONS: ${{ github.event.inputs.pkg_versions }}
   REPO_URL: https://github.com/Loong1996/immortalwrt.git
-  # 只维护这一条线：immortalwrt master 之上叠 airoha 机型支持，跟进上游走 rebase
-  REPO_BRANCH: master-airoha
+  # 只维护 master-airoha 这一条线；输入留空时用它，填别的分支只作测试
+  REPO_BRANCH: ${{ github.event.inputs.repo_branch || 'master-airoha' }}
   DEVICE: ${{ github.event.inputs.device }}
   DEVICE_TARGET: airoha
   # 默认值；由 Generate Variables 按机型覆写（MF 是 an7583）
@@ -241,7 +246,13 @@ jobs:
         echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
         echo "MODEL_TAG=$MODEL_TAG" >> $GITHUB_ENV
         echo "RELEASE_TAG=${MODEL_TAG}-${FLAVOR}-$DRAM_SIZE-$(date +"%Y%m%d")-${{ github.run_number }}" >> $GITHUB_ENV
-        echo "IS_PRERELEASE=false" >> $GITHUB_ENV
+        # 测试分支照发 Release 方便下载，但标成 pre-release，不盖掉 GitHub Latest；
+        # 教程的下载列表也只认正式发布
+        if [ "$REPO_BRANCH" = "master-airoha" ]; then
+          echo "IS_PRERELEASE=false" >> $GITHUB_ENV
+        else
+          echo "IS_PRERELEASE=true" >> $GITHUB_ENV
+        fi
         # 自适应：只放开 usable 上限，memory 留给 U-Boot 探测后 fixup 进 DTB
         if [ "$DRAM_SIZE" = "auto" ]; then
           echo "DRAM_LABEL=自适应" >> $GITHUB_ENV
@@ -757,6 +768,10 @@ jobs:
         if [ ! -s "$PI" ]; then
           echo "::warning::未找到 $PI，跳过选包页更新"
           exit 0
+        fi
+        # 测试分支不进选包页，免得在 gh-pages 上留下没人引用的索引文件
+        if [ "$REPO_BRANCH" != "master-airoha" ]; then
+          echo "::notice::$REPO_BRANCH 为测试分支，跳过选包页更新"; exit 0
         fi
         PAGES="$RUNNER_TEMP/pages"
         mkdir -p "$PAGES"
