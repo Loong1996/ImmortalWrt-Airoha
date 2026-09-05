@@ -1,0 +1,21 @@
+# master-airoha 的上游基线
+#
+# 记录「本项目当前这套改动是叠在上游哪个提交之上、并在那个基线上验证过」。
+# 由 scripts/check-drift.sh 读取，由人在 rebase 且实机验证之后手工更新 ——
+# 刻意不自动跟进：自动 bump 等于没有基线。
+#
+# 更新流程见 docs/upstream-drift.md。
+
+UPSTREAM_REPO=https://github.com/immortalwrt/immortalwrt.git
+UPSTREAM_BRANCH=master
+UPSTREAM_COMMIT=db5c5de56a4ca86b4f1705d38f343ab0075d185c
+UPSTREAM_DATE=2026-08-28
+
+SOURCE_REPO=https://github.com/Loong1996/immortalwrt.git
+SOURCE_BRANCH=master-airoha
+
+# 编译时的预期值。对不上说明上游换了版本，本项目打在其上的补丁需要复查 ——
+# 尤其 202 打在 U-Boot 核心的 net/net.c、net/Kconfig、include/net-legacy.h 上，
+# 大版本一升几乎必然要重新生成。
+UBOOT_AIROHA_VERSION=2026.07
+KERNEL_VERSION=6.18

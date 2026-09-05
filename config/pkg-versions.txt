@@ -1,0 +1,27 @@
+# 软件包版本覆盖
+#
+# 一行一个：<包名> <版本>
+# 以 # 开头的行、以及行内 # 之后的内容都是注释。两条编译线共用这一份。
+#
+# 只想这一次编个别的版本、不想动仓库文件时，用 Run workflow 的「指定软件包版本」
+# 输入框，格式是 sing-box=1.13.19，空格分隔多个。同名包以输入框为准。
+#
+# 编译前会改写 feed 里该包 Makefile 的 PKG_VERSION，并自动重算 PKG_HASH
+# （先以 skip 下载一次，取实际 tarball 的 sha256 写回，再校验一次），
+# 所以这里只填版本号，不用自己算哈希。
+#
+# 限制
+#   * 只支持 tarball 源的包（PKG_SOURCE_URL + PKG_HASH）。git 源的包
+#     （Makefile 里有 PKG_SOURCE_PROTO:=git）会直接报错退出 —— 那种要改的是
+#     PKG_SOURCE_VERSION 与 PKG_MIRROR_HASH，机制不同
+#   * 版本必须是上游真实存在的 tag，否则下载 404，构建立刻失败（不会等到编完）
+#   * 跨大版本升级可能因 build tag、依赖或补丁不匹配而编译失败 —— feed 里的
+#     Makefile 是按它自带的那个版本写的，换版本时它并不会跟着变
+#   * 只影响本次编译产物的版本，不影响刷完机后 apk 源里的版本
+#
+# 查上游有哪些 tag：
+#   gh api repos/SagerNet/sing-box/releases --jq '.[].tag_name'
+#
+# 例（去掉行首 # 生效）：
+# sing-box    1.13.19
+# xray-core   25.8.3

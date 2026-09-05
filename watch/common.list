@@ -1,0 +1,41 @@
+# 盯梢清单 · 公共部分
+#
+# 这里列的是「本项目依赖、但没有修改」的上游路径。
+#
+# 为什么需要它：git rebase 只在「上游改了 ∩ 我也改了」时报冲突。真正让人栽跟头
+# 的往往是「上游改了 ∩ 我只是依赖」—— 那种情况 rebase 一声不吭。25.12 线那次
+# 「编得过但刷上去没网」（310-09 / 310-10 / an7581.dtsi 三者错配）就是这一类，
+# 见 docs/branches.md。
+#
+# 用法：scripts/check-drift.sh watch
+#   把 upstream.lock 里 pin 住的提交与上游当前 tip 之间，落在这些路径上的改动
+#   全部列出来。列出不等于坏了，只是「这些地方动过，rebase 前该看一眼」。
+#
+# 语法：一行一条，可以是文件也可以是目录；# 开头是注释，空行忽略。
+
+# ── U-Boot ────────────────────────────────────────────────────────────────
+# PKG_VERSION 一变，202/206/950-954 全部要复查（202 打在 net/net.c、net/Kconfig、
+# include/net-legacy.h 这些 U-Boot 核心文件上）
+package/boot/uboot-airoha/Makefile
+# 整个补丁栈：号段邻居增删、以及 950-954 所依赖的 401（它生成的 defconfig 与
+# defenv 正是 950-954 的打击对象，属于 patch-on-patch，上游改 401 我们必炸）
+package/boot/uboot-airoha/patches
+
+# ── 内核补丁栈 ────────────────────────────────────────────────────────────
+# 本项目的 805 就住在这个目录里。上游在 8 月那批提交里把 801~804（AS21xxx）
+# 整组搬去了 generic，rebase 对此完全沉默 —— 正是要盯它的原因。
+target/linux/airoha/patches-6.18
+# 805 的 context 建立在 785-v7.0-07 之后（那个 backport 把 Serdes polarity
+# 抽成了 en8811h_config_serdes_polarity）。这一组一动，805 就要重新生成。
+target/linux/generic/backport-6.18/785-v7.0-05-phy-add-phy_get_rx_polarity-and-phy_get_tx_polarity.patch
+target/linux/generic/backport-6.18/785-v7.0-06-dt-bindings-net-airoha-en8811h-deprecate-airoha-pnsw.patch
+target/linux/generic/backport-6.18/785-v7.0-07-net-phy-air_en8811h-deprecate-airoha-pnswap-rx-and-a.patch
+
+# ── 内核配置 ──────────────────────────────────────────────────────────────
+# 本项目在 an7581/config-6.18 里打开 CPU_FREQ_THERMAL / CPU_THERMAL，而 generic
+# 显式关着它们。上游哪天改了这里的取值，an7581 那两行可能变成冗余或反向。
+target/linux/generic/config-6.18
+
+# ── sysupgrade 保留机制 ───────────────────────────────────────────────────
+# keep.d/xg-040g-md 靠它生效（保住随机生成的 MAC 不被 sysupgrade 冲掉）
+package/base-files/files/sbin/sysupgrade

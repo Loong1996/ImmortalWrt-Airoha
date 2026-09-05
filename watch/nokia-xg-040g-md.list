@@ -1,0 +1,32 @@
+# 盯梢清单 · XG-040G-MD 专属
+#
+# 说明与语法见 watch/common.list。
+
+# ── 设备树 ────────────────────────────────────────────────────────────────
+# 本项目改了 an758x-nokia_xg-040g-common.dtsi（内存）与
+# an7581-nokia_xg-040g-md-common.dtsi（LED 注释），改的地方 rebase 会报冲突；
+# 下面这些是「只依赖不修改」的，rebase 不会说话。
+#
+# an7581.dtsi 是 SoC 级：25.12 那次栽的正是它 —— 上游把 PCS 的属性名从
+# pcs = <...> 改成 pcs-handle，dts 编得过、固件刷得进、开机没网、日志无声。
+target/linux/airoha/dts/an7581.dtsi
+# ubi 变体的分区表，我们的 ubi.dts include 它
+target/linux/airoha/dts/an758x-nokia_xg-040g-ubi-parts.dtsi
+# 同族的另外两个变体定义：上游改它们，往往意味着共用 dtsi 也动了
+target/linux/airoha/dts/an7581-nokia_xg-040g-md.dts
+target/linux/airoha/dts/an7581-nokia_xg-040g-md-ubi.dts
+
+# ── 镜像与设备定义 ────────────────────────────────────────────────────────
+# 整理后本项目不再改这个文件（tcboot 删除后完全回到上游原样），但 CI 的
+# DEVICE_SYMBOL=nokia_xg-040g-md-ubi / nokia_xg-040g-md 直接依赖这里的定义。
+# 上游改了设备名或镜像组装方式，编译会失败或编出装不上的固件。
+target/linux/airoha/image/an7581.mk
+# uboot-envtools 的分区表、DEFAULT_PACKAGES —— 都曾是本项目改过又还原的地方
+target/linux/airoha/an7581/target.mk
+package/boot/uboot-tools/uboot-envtools/files/airoha_an7581
+
+# ── base-files ────────────────────────────────────────────────────────────
+# 90_xg-040g-md_mac 在 preinit 阶段跑，与升级流程、失效保护网络都有交互
+target/linux/airoha/an7581/base-files/lib/upgrade/platform.sh
+# 本项目改了同目录的 01_leds；02_network 已还原为上游原样但仍被依赖
+target/linux/airoha/an7581/base-files/etc/board.d/02_network

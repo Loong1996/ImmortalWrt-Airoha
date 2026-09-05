@@ -1,0 +1,142 @@
+name: 更新门户网页
+
+# 改了 portal/ selector/ guide/ 想立刻上线：不勾「刷新选包索引」，
+# 只 checkout 本仓库再推 gh-pages，几十秒。
+#
+# 勾上才克隆源码 + feeds + defconfig 生成索引，约十分钟。
+# tmp/.packageinfo 是 include/scan.mk 在 make defconfig 阶段扫描全部
+# feeds 产生的，那时候一行代码都还没编。
+run-name: "更新门户网页${{ inputs.update_index && ' · 刷新索引' || '' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      update_index:
+        description: '同时刷新选包索引（要克隆源码，约十分钟；不勾则只推网页，几十秒）'
+        required: true
+        default: false
+        type: boolean
+      device:
+        description: '按哪款机型生成索引（仅刷新索引时有效；两款的软件包集合相同，只影响「依赖带入」那一档）'
+        required: true
+        default: 'xg-040g-md'
+        type: choice
+        options:
+          - xg-040g-md
+          - xg-040g-mf
+      device_variant:
+        description: '设备变体（仅刷新索引时有效；ubi 推荐）'
+        required: true
+        default: 'ubi'
+        type: choice
+        options:
+          - ubi
+          - stock
+
+env:
+  REPO_URL: https://github.com/Loong1996/immortalwrt.git
+  REPO_BRANCH: master-airoha
+  TZ: Asia/Shanghai
+
+jobs:
+  Pages:
+    if: ${{ !inputs.update_index }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Publish To Pages(只推网页)
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        PAGES="$RUNNER_TEMP/pages"
+        mkdir -p "$PAGES"
+        bash "$GITHUB_WORKSPACE/scripts/publish-pages.sh" \
+          "$PAGES" \
+          "门户：同步网页（#${{ github.run_number }}）"
+
+  Index:
+    if: ${{ inputs.update_index }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Initialization Environment(初始化环境)
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+
+    - name: Clone Source Code(克隆源代码)
+      run: |
+        # 只要元数据，不需要历史
+        git clone --depth 1 "$REPO_URL" -b "$REPO_BRANCH" openwrt
+        cd openwrt
+        echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
+        echo "SRC_INFO=$(git show -s --format='%h %s')" >> $GITHUB_ENV
+
+    - name: Generate Variables(生成变量)
+      run: |
+        # 与构建流程保持一致：机型决定子目标与配置文件，变体决定设备符号
+        case "${{ inputs.device }}" in
+          xg-040g-mf) DEVICE_SUBTARGET=an7583; CONFIG_FILE=config/xg-040g-mf-master.config ;;
+          *)          DEVICE_SUBTARGET=an7581; CONFIG_FILE=config/xg-040g-md-master.config ;;
+        esac
+        case "${{ inputs.device_variant }}" in
+          stock)  DEVICE_SYMBOL=nokia_${{ inputs.device }} ;;
+          ubi)    DEVICE_SYMBOL=nokia_${{ inputs.device }}-ubi ;;
+          *)      echo "::error::不支持的 device_variant"; exit 1 ;;
+        esac
+        echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
+        echo "CONFIG_FILE=$CONFIG_FILE" >> $GITHUB_ENV
+        echo "DEVICE_SYMBOL=$DEVICE_SYMBOL" >> $GITHUB_ENV
+        echo "INDEX_TAG=索引 $(date +%Y-%m-%d) #${{ github.run_number }}" >> $GITHUB_ENV
+        echo "使用配置: $CONFIG_FILE    设备: $DEVICE_SYMBOL"
+
+    - name: Install Feeds(安装feeds)
+      run: |
+        cd $OPENWRT_PATH
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Run defconfig(生成元数据)
+      run: |
+        cp "$GITHUB_WORKSPACE/$CONFIG_FILE" $OPENWRT_PATH/.config
+        cd $OPENWRT_PATH
+        # 设备符号影响 defconfig 补全出来的包集合，也就是索引里"依赖带入"
+        # 那一档。不设对设备，那一档就是错的。
+        sed -i "/^CONFIG_TARGET_airoha_${DEVICE_SUBTARGET}_DEVICE_/d" .config
+        sed -i "/^# CONFIG_TARGET_airoha_${DEVICE_SUBTARGET}_DEVICE_/d" .config
+        sed -i "/^CONFIG_TARGET_airoha_${DEVICE_SUBTARGET}=y/a CONFIG_TARGET_airoha_${DEVICE_SUBTARGET}_DEVICE_${DEVICE_SYMBOL}=y" .config
+        # 这一步只读元数据、不编译，是整个流程里最慢的一环（几分钟）
+        make defconfig
+        grep -q "^CONFIG_TARGET_airoha_${DEVICE_SUBTARGET}_DEVICE_${DEVICE_SYMBOL}=y" .config \
+          || { echo "::error::defconfig 后设备符号丢失: $DEVICE_SYMBOL"; exit 1; }
+        [ -s tmp/.packageinfo ] || { echo "::error::未生成 tmp/.packageinfo"; exit 1; }
+        echo "元数据条目数: $(grep -c '^Package: ' tmp/.packageinfo)"
+
+    - name: Build Index(生成索引)
+      run: |
+        PAGES="$RUNNER_TEMP/pages"
+        mkdir -p "$PAGES"
+        python3 "$GITHUB_WORKSPACE/selector/build-index.py" \
+          "$OPENWRT_PATH/tmp/.packageinfo" \
+          "$OPENWRT_PATH/.config" \
+          "$GITHUB_WORKSPACE/$CONFIG_FILE" \
+          "$REPO_BRANCH" "$INDEX_TAG ($SRC_INFO)" \
+          "$PAGES/packages-$REPO_BRANCH.json"
+
+    - name: Publish To Pages(发布到选包页)
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        bash "$GITHUB_WORKSPACE/scripts/publish-pages.sh" \
+          "$RUNNER_TEMP/pages" \
+          "选包页：更新 $REPO_BRANCH 索引（$INDEX_TAG）"
