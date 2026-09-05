@@ -1,0 +1,1061 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ImmortalWrt-Airoha 选包</title>
+<style>
+/* 与 Airoha Web U-Boot 恢复页同一套令牌：macOS 的灰底白卡、单一蓝色、细分隔线 */
+:root{
+  --bg:#f5f5f7; --panel:#fff; --fg:#1d1d1f; --dim:#6e6e73; --line:rgba(60,60,67,.16);
+  --accent:#0a66d6; --add:#1f8a3b; --del:#d9342b; --chip:#e8e8ed; --warn:#b8500f;
+  --btn:#fff; --btnb:rgba(0,0,0,.14);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#1e1e20; --panel:#2a2a2d; --fg:#f5f5f7; --dim:#a1a1a6; --line:rgba(255,255,255,.1);
+    --accent:#2f7ff2; --add:#4cd964; --del:#ff5f57; --chip:#3a3a3d; --warn:#f0a04a;
+    --btn:#3a3a3d; --btnb:rgba(255,255,255,.14);
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font:13.5px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:16px 16px 200px}
+h1{font-size:1.45rem;font-weight:700;letter-spacing:-.01em;margin:8px 0 4px}
+.sub{color:var(--dim);margin:0 0 16px}
+.sub a{color:var(--accent)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+select,input[type=search],button{
+  font:inherit;color:var(--fg);background:var(--btn);
+  border:1px solid var(--btnb);border-radius:6px;padding:5px 10px;box-shadow:0 .5px 1px rgba(0,0,0,.08)}
+input[type=search]{background:var(--panel);box-shadow:none}
+input[type=search]:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px rgba(10,102,214,.25)}
+input[type=search]{flex:1;min-width:220px}
+button{cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:transparent;color:#fff;font-weight:500}
+.meta{color:var(--dim);font-size:13px;margin:0 0 12px}
+.meta.warn{color:var(--warn)}
+.meta.err{color:var(--del)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.grp{border-bottom:1px solid var(--line)}
+.grp:last-child{border-bottom:0}
+.grp>summary{padding:8px 12px;cursor:pointer;font-weight:600;list-style:none;display:flex;gap:8px}
+.grp>summary::-webkit-details-marker{display:none}
+.grp>summary::before{content:"\25B8";color:var(--dim);width:1em}
+.grp[open]>summary::before{content:"\25BE"}
+.grp>summary .n{color:var(--dim);font-weight:400}
+.sub2{padding:6px 12px 2px 28px;color:var(--dim);font-size:12px}
+.row{display:flex;gap:8px;align-items:baseline;padding:3px 12px 3px 28px}
+.row:hover{background:var(--chip)}
+.row label,.row .lab{display:flex;gap:8px;align-items:baseline;flex:1;min-width:0}
+.row label{cursor:pointer}
+.mark{border:0;background:none;padding:0 2px;font:inherit;line-height:1;
+  color:var(--dim);cursor:pointer;border-radius:4px}
+.mark.on{color:var(--accent)}
+.mark:hover{background:var(--chip);color:var(--fg)}
+.legend{color:var(--dim);font-size:12px;margin-top:4px}
+.legend b{color:var(--accent);font-weight:400}
+.row .name{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap}
+.row .ver{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:11px;color:var(--dim);white-space:nowrap;max-width:14em;overflow:hidden;text-overflow:ellipsis}
+.row .t{color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.badge{font-size:11px;padding:0 7px;border-radius:99px;background:var(--chip);color:var(--dim);white-space:nowrap}
+.badge.ok{color:var(--add)}
+.badge.mid{color:var(--warn)}
+.badge.no{color:var(--del)}
+.gap{font-size:12px;margin:4px 0 6px}
+.gap.ok{color:var(--add)} .gap.mid{color:var(--warn)} .gap.no{color:var(--del)}
+.info{border:0;background:none;color:var(--dim);cursor:pointer;padding:0 4px;
+  font:inherit;line-height:1;border-radius:4px}
+.info:hover{color:var(--accent);background:var(--chip)}
+.detail{padding:8px 12px 12px 28px;background:var(--chip);
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:13px}
+.detail h4{margin:8px 0 4px;font-size:12px;color:var(--dim);font-weight:600}
+.detail h4:first-child{margin-top:0}
+.detail .list{display:flex;flex-wrap:wrap;gap:4px 8px}
+.pill{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;
+  padding:1px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel);
+  max-width:100%;overflow-wrap:anywhere}
+button.pill{cursor:pointer;color:var(--accent)}
+button.pill:hover{border-color:var(--accent)}
+a.pill{color:var(--accent);text-decoration:none}
+a.pill:hover{border-color:var(--accent)}
+.pill.raw{color:var(--dim);border-style:dashed}
+.pill.bad{color:var(--del);border-color:var(--del)}
+.pill .cond{color:var(--warn)}
+.note{color:var(--dim);font-size:12px;margin:4px 0 0}
+.empty{padding:24px 12px;text-align:center;color:var(--dim);line-height:1.8}
+.fwsum{padding:10px 12px;border-bottom:1px solid var(--line);background:var(--chip)}
+.fwsum .n{font-weight:600}
+.fwsum .brk{color:var(--dim);font-size:13px;margin-top:2px}
+.out{position:fixed;left:0;right:0;bottom:0;background:var(--panel);
+  border-top:1px solid var(--line);padding:10px 16px;backdrop-filter:blur(16px)}
+.out .inner{max-width:1000px;margin:0 auto;display:flex;gap:8px;align-items:flex-start}
+textarea{flex:1;width:100%;min-height:56px;max-height:120px;resize:vertical;
+  font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px}
+.tally{margin:0 0 6px;font-size:13px}
+.tally .a{color:var(--add)} .tally .d{color:var(--del)}
+.credit{margin-top:2rem;color:var(--dim);font-size:.85rem}
+.credit a{color:var(--dim)}
+@media (max-width:640px){
+  .out .inner{flex-direction:column;align-items:stretch}
+  .row .ver{display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="sub" style="margin-bottom:8px"><a href="./">← 回门户</a></p>
+  <h1>ImmortalWrt-Airoha 选包</h1>
+  <p class="sub">勾选想要的软件包，把底部生成的字符串粘进
+    <a href="https://github.com/Loong1996/ImmortalWrt-Airoha/actions" target="_blank" rel="noopener">Actions</a>
+    里 <code>附加软件包</code> 那一栏，再跑一次构建即可。点每行右侧的 <b>ⓘ</b> 看依赖、冲突与上游地址。<br>
+    没勾的包行尾会标出刷完机还能不能装：<span class="badge ok">可后装</span>
+    直接 <code>apk add</code> 就行；<span class="badge mid">缺 N 依赖</span>
+    官方源多半能自己补；<span class="badge no">缺 N 内核模块</span>
+    内核模块事后补不了，现在不编就只能回头重编。</p>
+
+  <div class="bar">
+    <select id="src"></select>
+    <input type="search" id="q" placeholder="搜索，至少 2 字符。可多词（luci ddns），也可只打首字母（lapdd）">
+    <select id="view">
+      <option value="all">全部软件包</option>
+      <option value="chg">仅看改动</option>
+      <option value="fw">本次固件清单</option>
+    </select>
+    <button id="reset">清空改动</button>
+  </div>
+  <p class="meta" id="status">加载中…</p>
+
+  <div class="panel" id="list"></div>
+  <footer class="credit">作者 <a href="https://github.com/Loong1996/ImmortalWrt-Airoha" target="_blank" rel="noopener">Loong</a></footer>
+</div>
+
+<div class="out">
+  <div class="inner">
+    <div style="flex:1;min-width:0">
+      <p class="tally" id="tally">未做任何改动</p>
+      <textarea id="outbox" readonly placeholder="勾选后这里会生成包名串"></textarea>
+    </div>
+    <button class="primary" id="copy">复制</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// 两种数据源：
+//
+// 编译索引 —— 每次构建成功后由 workflow 从源码树的 tmp/.packageinfo 导出，
+//   带描述、分类、版本、依赖、冲突、许可证与上游地址，含自建包，且保证这条
+//   分支编得出来。是首选。
+//
+// 官方索引 —— immortalwrt 下载站的 index.json，静态页可直接跨域取（对方开了
+//   CORS）。好处是不用等构建就能用；代价是它整份数据只有包名和版本两项，
+//   没有描述、分类、依赖，也不含 kmod（在 targets/*/kmods/ 下，目录名带内核
+//   版本）和本仓库自建包。编译索引取不到时自动回落到它，也可手动选。
+var OFFICIAL_PREFIX = "official:";
+var FEEDS = ["base", "luci", "packages", "routing", "telephony"];
+var OFFICIAL = {
+  // 滚动地址，不带具体小版本号，免得哪天过期。MD 与 MF 同一架构，共用一份。
+  "master-airoha":
+    "https://downloads.immortalwrt.org/snapshots/packages/aarch64_cortex-a53/"
+};
+var OPTIONS = [
+  { v: "master-airoha", t: "master-airoha（编译索引，MD / MF 共用）" },
+  { v: OFFICIAL_PREFIX + "master-airoha", t: "官方索引 · snapshots（仅名字与版本）" }
+];
+var MAX_FLAT = 400;   // 搜索结果一次最多渲染多少条，防止上千 DOM 拖垮手机
+var MAX_REV = 40;     // 反向依赖最多列几个（libc 这种会有上千个）
+
+var pkgs = [], byName = {}, changes = {};
+var source = OPTIONS[0].v, branch = OPTIONS[0].v, officialMode = false;
+var view = "all";   // all=全部可选 / chg=仅看改动 / fw=本次固件清单
+// 详情和主索引拆两份，主索引先到先渲染，详情后台再取。
+// 早先是点 ⓘ 才取，现在行尾的可装性标记要用依赖图，改成一上来就要
+var detail = null, detailState = "none", rev = null, expanded = null, showClosure = false;
+// 被依赖和缺失依赖都可能很长（libc 被 7229 个包依赖），默认截断，可展开
+var showRev = false, showGap = false;
+// 闭包只取决于依赖图，跟勾选无关，算一次存着 —— 行尾的可装性标记每次
+// 重绘都要对几百行各算一遍，不缓存会明显拖慢输入
+var cloCache = {};
+
+function $(id) { return document.getElementById(id); }
+
+function store(key, val) {
+  try {
+    if (val === undefined) return localStorage.getItem(key);
+    localStorage.setItem(key, val);
+  } catch (e) { /* 隐私模式或站点数据被禁用，忽略 */ }
+  return null;
+}
+
+// 改动按分支存，不按数据源存：同一条线换个索引看，选择应该还在
+function loadChanges() {
+  changes = {};
+  try {
+    var raw = store("chg:" + branch);
+    if (raw) changes = JSON.parse(raw) || {};
+  } catch (e) { changes = {}; }
+}
+
+function saveChanges() { store("chg:" + branch, JSON.stringify(changes)); }
+
+// 复选框状态 = 基础配置里有没有，再叠加本次改动。
+// 官方索引没有 sel，一律按"基础配置里没有"处理。
+function isChecked(p) {
+  var c = changes[p.n];
+  if (c === "add") return true;
+  if (c === "del") return false;
+  return p.sel === 2;
+}
+
+function toggle(name) {
+  var p = byName[name];
+  if (!p) return;
+  var base = (p.sel === 2);
+  var want = !isChecked(p);
+  if (want === base) delete changes[name];
+  else changes[name] = want ? "add" : "del";
+  saveChanges();
+  render();
+}
+
+function output() {
+  var add = [], del = [];
+  Object.keys(changes).forEach(function (n) {
+    (changes[n] === "add" ? add : del).push(n);
+  });
+  add.sort();
+  del.sort();
+  var parts = add.concat(del.map(function (n) { return "-" + n; }));
+  return { add: add, del: del, str: parts.join(" ") };
+}
+
+function el(tag, cls, text) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+/* ---------- 详情数据 ---------- */
+
+function loadDetail() {
+  if (detailState === "loading" || detailState === "ready") return;
+  detailState = "loading";
+  render();
+  fetch("detail-" + branch + ".json", { cache: "no-cache" })
+    .then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    })
+    .then(function (d) {
+      if (!d.d || d.d.length !== pkgs.length) {
+        throw new Error("详情与索引长度不一致");
+      }
+      detail = d;
+      // 反向依赖前端算：遍历一遍就有，没必要让构建端再存一份
+      rev = [];
+      d.d.forEach(function (row, i) {
+        row.forEach(function (x) {
+          if (typeof x !== "number") return;
+          (rev[x] = rev[x] || []).push(i);
+        });
+      });
+      detailState = "ready";
+      render();
+    })
+    .catch(function (e) {
+      detail = null;
+      detailState = "error:" + e.message;
+      render();
+    });
+}
+
+// 无条件依赖的传递闭包，不含自己。条件依赖不计入 —— 它们要不要装取决于
+// 别的配置开关，算进来会虚报。
+function closure(start) {
+  if (cloCache[start]) return cloCache[start];
+  var seen = {}, queue = [start], out = [];
+  seen[start] = true;
+  while (queue.length) {
+    var cur = queue.shift();
+    (detail.d[cur] || []).forEach(function (x) {
+      if (typeof x !== "number" || seen[x]) return;
+      seen[x] = true;
+      out.push(x);
+      queue.push(x);
+    });
+  }
+  cloCache[start] = out;
+  return out;
+}
+
+/* ---------- 事后可装性 ---------- */
+
+// 刷完机再 apk add 能不能装上，取决于依赖里有没有事后补不了的东西。
+//
+// 内核模块补不了。kmod 硬依赖一个带哈希的 kernel 版本，形如
+// 6.18.44~c3e3e221bd513a781451e164ab71a3b5-r1；哈希由内核配置与补丁算出，
+// 自建固件跟官方源必然不同（官方那份同样是 6.18.44，哈希却是 7c08b90b…），
+// 所以官方 kmod 装不上自建固件，反过来也一样。kmod 只有一次机会：编固件时。
+//
+// 别的包补得了。纯脚本包和大部分带库的包官方源里都有，apk 会自己解析装上。
+// 代价是自建固件混用官方源本就不是官方支持的用法，带 .so 的包可能因为 base
+// 不同步出问题 —— 所以这一档只说"多半能装"。
+function isKmod(name) { return name.indexOf("kmod-") === 0; }
+
+// 本次固件清单。起点必须是 defconfig 已经算好的那份（sel>=1），不能从依赖图
+// 重算 —— 试过：85 个显式勾选算闭包只得 266 个，而 defconfig 的真实答案是
+// 287 个。漏掉的是 base-files、busybox 这类 target 默认包和条件依赖，多出的
+// 是 firewall、iptables-* 这些 defconfig 在互斥备选里没挑中的。
+//
+// 在这个起点上叠加本次增删：
+//   新增 —— 连它的依赖闭包一起算进来。这是下限，闭包只走无条件依赖。
+//   移除 —— 只把那一个包拿掉。它腾出来的依赖还留不留，得 defconfig 重算才
+//           知道，这里不猜，所以移除之后清单是偏多的。
+var fwSet = null;     // 会进固件的包（按下标）
+var fwPulled = null;  // 其中因本次新增才带进来的
+
+function computeFirmware() {
+  fwSet = {};
+  fwPulled = {};
+  var add = [];
+  pkgs.forEach(function (p) {
+    if (isChecked(p)) {
+      fwSet[p.i] = true;
+      if (changes[p.n] === "add") add.push(p.i);
+    } else if (p.sel === 1 && changes[p.n] !== "del") {
+      fwSet[p.i] = true;
+    }
+  });
+  if (detailState === "ready" && detail) {
+    add.forEach(function (i) {
+      closure(i).forEach(function (j) {
+        if (!fwSet[j]) { fwSet[j] = true; fwPulled[j] = true; }
+      });
+    });
+  }
+}
+
+// 这个包最终会不会躺在固件里
+function inFirmware(p) {
+  return fwSet ? !!fwSet[p.i] : (p.sel === 1 || isChecked(p));
+}
+
+// null 表示这个问题不成立或算不出来：官方索引没有依赖数据、详情还没到、
+// 或者本体已经在固件里了（那就没有"事后装"这回事）。
+function gapFor(p) {
+  if (officialMode || detailState !== "ready" || !detail) return null;
+  if (inFirmware(p)) return null;
+  var miss = [], missK = [];
+  closure(p.i).forEach(function (i) {
+    if (inFirmware(pkgs[i])) return;
+    miss.push(i);
+    if (isKmod(pkgs[i].n)) missK.push(i);
+  });
+  // 本体自己就是 kmod 的话，依赖齐不齐都改变不了结论
+  return { miss: miss, missK: missK, selfKmod: isKmod(p.n) };
+}
+
+function gapVerdict(g) {
+  if (g.selfKmod) {
+    return { cls: "no", short: "只能编进固件",
+      tip: "本体就是内核模块，事后 apk 装不上，必须在这次编译里带进去。" };
+  }
+  if (g.missK.length) {
+    return { cls: "no", short: "缺 " + g.missK.length + " 内核模块",
+      tip: "依赖里有 " + g.missK.length + " 个内核模块不在固件里。内核模块事后补不了，" +
+           "现在不编进去，刷完机就只能回头重编。" };
+  }
+  if (g.miss.length) {
+    return { cls: "mid", short: "缺 " + g.miss.length + " 依赖",
+      tip: "缺 " + g.miss.length + " 个依赖，但都不是内核模块。刷完机 apk add 时官方源多半" +
+           "能自动补齐 —— 自建固件混用官方源不是官方支持的用法，带 .so 的包可能出问题，" +
+           "想稳就用下面的按钮先编进去。" };
+  }
+  return { cls: "ok", short: "可后装",
+    tip: "依赖都已经在固件里了，刷完机直接 apk add 就能装，不用重编。" };
+}
+
+// 把一批包加进选中列表。基础配置里本来就有、只是被手动移除过的，撤销那次
+// 移除即可，不必记成新增。
+function addPkgs(idxs) {
+  idxs.forEach(function (i) {
+    var p = pkgs[i];
+    if (p.sel === 2) delete changes[p.n];
+    else changes[p.n] = "add";
+  });
+  saveChanges();
+  render();
+}
+
+function jumpTo(name) {
+  $("q").value = name;
+  view = "all";
+  expanded = name;
+  showClosure = false;
+  showRev = false;
+  showGap = false;
+  render();
+}
+
+// 依赖目标可能是解析不到的虚拟包或内核符号，那种存的是字符串，不可点
+function refPill(x, cond, cls) {
+  var known = typeof x === "number";
+  var name = known ? pkgs[x].n : x;
+  var e = known ? el("button", "pill" + (cls ? " " + cls : ""))
+                : el("span", "pill raw");
+  if (cond) {
+    e.appendChild(el("span", "cond", cond + " ? "));
+    e.appendChild(document.createTextNode(name));
+  } else {
+    e.textContent = name;
+  }
+  if (known) {
+    e.title = pkgs[x].t || name;
+    e.addEventListener("click", function () { jumpTo(name); });
+  } else {
+    e.title = "非软件包（虚拟包或内核符号），索引里没有对应条目";
+  }
+  return e;
+}
+
+// 列一串包，超过 MAX_REV 就截断，给个展开按钮把剩下的放出来。
+// libc 被 7229 个包依赖，一次全铺开光建 DOM 就要不少时间，所以默认收着，
+// 按钮上写清总数，点的人知道自己在要什么。
+function pillList(box, idxs, open, onToggle, mkPill) {
+  var shown = (open || idxs.length <= MAX_REV) ? idxs : idxs.slice(0, MAX_REV);
+  var wrap = el("div", "list");
+  shown.forEach(function (t) { wrap.appendChild(mkPill(t)); });
+  box.appendChild(wrap);
+  if (idxs.length <= MAX_REV) return;
+  var b = el("button", "pill", open
+    ? "收起，只看前 " + MAX_REV + " 个"
+    : "展开全部 " + idxs.length + " 个");
+  b.addEventListener("click", function () { onToggle(!open); render(); });
+  var w = el("div", "list");
+  w.style.marginTop = "6px";
+  w.appendChild(b);
+  box.appendChild(w);
+}
+
+function detailFor(p) {
+  var box = el("div", "detail");
+  if (officialMode) {
+    box.appendChild(el("p", "note",
+      "官方索引整份数据只有包名和版本两项，没有依赖、冲突、许可证与上游地址。" +
+      "切换到编译索引可以看到这些。"));
+    return box;
+  }
+  if (detailState === "loading") {
+    box.appendChild(el("p", "note", "正在加载详情…"));
+    return box;
+  }
+  if (detailState.indexOf("error:") === 0) {
+    box.appendChild(el("p", "note",
+      "取不到 detail-" + branch + ".json（" + detailState.slice(6) +
+      "）。这条线的索引可能是加入详情功能之前生成的，重新生成一次即可。"));
+    return box;
+  }
+  if (detailState !== "ready") {
+    box.appendChild(el("p", "note", "详情未加载"));
+    return box;
+  }
+
+  var i = p.i;
+  var d = detail.d[i] || [], k = detail.k[i] || [];
+  var x = detail.x[i] || [], r = rev[i] || [];
+  var licId = detail.l[i], url = detail.u[i];
+
+  // 这一节放最前面：它回答的是“现在不编，以后还有没有机会”，
+  // 比版本、许可证都要紧
+  var g = gapFor(p);
+  if (g) {
+    var gv = gapVerdict(g);
+    box.appendChild(el("h4", null, "事后能不能装"));
+    box.appendChild(el("p", "gap " + gv.cls, gv.tip));
+    if (g.miss.length) {
+      // 内核模块排前面：截断时先保证看得见那些补不了的
+      var ord = g.miss.slice().sort(function (a, b) {
+        var ka = isKmod(pkgs[a].n) ? 0 : 1, kb = isKmod(pkgs[b].n) ? 0 : 1;
+        return ka - kb || (pkgs[a].n < pkgs[b].n ? -1 : 1);
+      });
+      pillList(box, ord, showGap, function (v) { showGap = v; }, function (t) {
+        return refPill(t, null, isKmod(pkgs[t].n) ? "bad" : null);
+      });
+      var acts = el("div", "list");
+      acts.style.marginTop = "6px";
+      var b1 = el("button", "pill", "补齐依赖（" + g.miss.length + " 个）");
+      b1.title = "把缺的依赖全部编进固件，本体不编";
+      b1.addEventListener("click", function () { addPkgs(g.miss); });
+      acts.appendChild(b1);
+      if (g.missK.length && g.missK.length < g.miss.length) {
+        var b2 = el("button", "pill", "只补内核模块（" + g.missK.length + " 个）");
+        b2.title = "只把内核模块编进固件，其余依赖留给官方源";
+        b2.addEventListener("click", function () { addPkgs(g.missK); });
+        acts.appendChild(b2);
+      }
+      box.appendChild(acts);
+      box.appendChild(el("p", "note",
+        "两个按钮都只加依赖，不会把本体勾上。刷完机再 apk add 装本体，" +
+        "版本跟着官方源走，以后 apk upgrade 也能跟进。" +
+        "加完可以在列表里再手动增删。"));
+    }
+  }
+
+  // 版本 / 许可证 / 上游
+  var meta = el("div", "list");
+  if (p.v) meta.appendChild(el("span", "pill", "v" + p.v));
+  if (licId >= 0) meta.appendChild(el("span", "pill", detail.lic[licId]));
+  if (url) {
+    var a = el("a", "pill", url.replace(/^https?:\/\//, ""));
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.title = url;
+    meta.appendChild(a);
+  }
+  if (meta.children.length) {
+    box.appendChild(el("h4", null, "信息"));
+    box.appendChild(meta);
+  }
+
+  if (x.length) {
+    box.appendChild(el("h4", null, "冲突（" + x.length + "）"));
+    var xl = el("div", "list");
+    x.forEach(function (t) { xl.appendChild(refPill(t, null, "bad")); });
+    box.appendChild(xl);
+    box.appendChild(el("p", "note", "与本包互斥，不能同时装进固件"));
+  }
+
+  box.appendChild(el("h4", null, "依赖（" + d.length + "）"));
+  if (!d.length) {
+    box.appendChild(el("p", "note", "没有无条件依赖"));
+  } else {
+    var dl = el("div", "list");
+    d.forEach(function (t) { dl.appendChild(refPill(t, null)); });
+    box.appendChild(dl);
+    var btn = el("button", "pill",
+      showClosure ? "收起传递闭包" : "展开传递闭包（含间接依赖）");
+    btn.addEventListener("click", function () { showClosure = !showClosure; render(); });
+    var wrap = el("div", "list");
+    wrap.style.marginTop = "6px";
+    wrap.appendChild(btn);
+    box.appendChild(wrap);
+    if (showClosure) {
+      var cl = closure(i).slice();
+      box.appendChild(el("h4", null, "勾上它总共会带进 " + cl.length + " 个包"));
+      var cld = el("div", "list");
+      cl.sort(function (a2, b2) { return pkgs[a2].n < pkgs[b2].n ? -1 : 1; });
+      cl.forEach(function (t) { cld.appendChild(refPill(t, null)); });
+      box.appendChild(cld);
+    }
+  }
+
+  if (k.length) {
+    box.appendChild(el("h4", null, "条件依赖（" + k.length + "）"));
+    var kl = el("div", "list");
+    k.forEach(function (pair) { kl.appendChild(refPill(pair[1], pair[0])); });
+    box.appendChild(kl);
+    box.appendChild(el("p", "note", "只有对应配置项打开时才会装，未计入上面的传递闭包"));
+  }
+
+  box.appendChild(el("h4", null, "被依赖（" + r.length + "）"));
+  if (!r.length) {
+    box.appendChild(el("p", "note", "没有别的软件包依赖它，可以放心移除"));
+  } else {
+    pillList(box, r, showRev, function (v) { showRev = v; }, function (t) {
+      return refPill(t, null);
+    });
+    box.appendChild(el("p", "note",
+      "这些包里只要有一个被选中，本包就移除不掉 —— 构建时会给出 warning 并照常编进固件"));
+  }
+  return box;
+}
+
+/* ---------- 列表 ---------- */
+
+// 清单顶上的小结。分档说清楚每个包是怎么进来的，以及哪一档是估的 ——
+// 一份说不清准确度的清单，看的人没法判断该不该信它。
+function fwSummary(pool) {
+  var box = el("div", "fwsum");
+  if (officialMode) {
+    box.appendChild(el("div", "n", "本次勾选：共 " + pool.length + " 个软件包"));
+    box.appendChild(el("p", "note",
+      "官方索引没有基础配置与依赖信息，列不出完整的固件清单，这里只有你本次勾上的。" +
+      "想看完整清单，切到上面的编译索引。"));
+    return box;
+  }
+  var a = 0, b = 0, c = 0, d = 0;
+  pool.forEach(function (p) {
+    if (fwPulled[p.i]) d++;
+    else if (changes[p.n] === "add") c++;
+    else if (p.sel === 2) a++;
+    else b++;
+  });
+  var parts = [];
+  if (a) parts.push("基础配置 " + a);
+  if (b) parts.push("依赖带入 " + b);
+  if (c) parts.push("本次新增 " + c);
+  if (d) parts.push("新增带入 " + d);
+  box.appendChild(el("div", "n", "本次固件清单：共 " + pool.length + " 个软件包"));
+  box.appendChild(el("div", "brk", parts.join("　＋　")));
+  var lg = el("div", "legend");
+  lg.appendChild(el("b", null, "●"));
+  lg.appendChild(document.createTextNode(" 配置里点名要的　"));
+  lg.appendChild(el("span", null, "○"));
+  lg.appendChild(document.createTextNode(" 依赖带进来的　—— 两种都会进固件，点记号可以互换"));
+  box.appendChild(lg);
+  box.appendChild(el("p", "note",
+    "前两档来自 defconfig 已经算好的那份，准确。「新增带入」是估的下限 —— " +
+    "只算了无条件依赖，条件依赖和互斥备选算不出来。取消勾选即可移除；但被移除的包" +
+    "腾出来的依赖不会跟着从这里消失，那要 defconfig 重算才知道，所以移除之后这份偏多。"));
+  return box;
+}
+
+function rowFor(p) {
+  var item = el("div", "item");
+  var row = el("div", "row");
+  var lab;
+  if (view === "fw" && !officialMode) {
+    // 清单里每一行都会进固件，勾/不勾在这个视图读起来像"在/不在"，实际
+    // 含义是"配置里点名要的 / 依赖带进来的"。换成两个不会误读的记号。
+    lab = el("div", "lab");
+    var named = isChecked(p);
+    var mk = el("button", "mark" + (named ? " on" : ""), named ? "●" : "○");
+    mk.title = named
+      ? "点名要的：配置里显式选了它。点一下取消，它就不进固件了"
+      : "依赖带进来的：你没点名，是别的包需要它。点一下改成点名要，" +
+        "这样就算带它进来的包被移掉，它也还在";
+    mk.setAttribute("aria-label", (named ? "取消点名 " : "点名要 ") + p.n);
+    mk.addEventListener("click", function () { toggle(p.n); });
+    lab.appendChild(mk);
+  } else {
+    lab = el("label");
+    var cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = isChecked(p);
+    cb.addEventListener("change", function () { toggle(p.n); });
+    lab.appendChild(cb);
+  }
+  lab.appendChild(el("span", "name", p.n));
+  if (p.v) lab.appendChild(el("span", "ver", p.v));
+  if (p.t) lab.appendChild(el("span", "t", p.t));
+  row.appendChild(lab);
+  // 官方索引判断不出这两种状态，硬标就是骗人，所以只在编译索引下显示
+  if (p.sel === 2) row.appendChild(el("span", "badge", "基础配置"));
+  else if (p.sel === 1) row.appendChild(el("span", "badge", "依赖已含"));
+  if (changes[p.n]) {
+    var b = el("span", "badge", changes[p.n] === "add" ? "＋新增" : "－移除");
+    b.style.color = changes[p.n] === "add" ? "var(--add)" : "var(--del)";
+    row.appendChild(b);
+  }
+  if (view === "fw" && fwPulled && fwPulled[p.i]) {
+    row.appendChild(el("span", "badge", "新增带入"));
+  }
+  var g = gapFor(p);
+  if (g) {
+    var gv = gapVerdict(g);
+    var gb = el("span", "badge " + gv.cls, gv.short);
+    gb.title = gv.tip;
+    row.appendChild(gb);
+  }
+  var info = el("button", "info", "ⓘ");
+  info.title = "查看依赖、冲突与上游地址";
+  info.setAttribute("aria-label", "查看 " + p.n + " 的详情");
+  info.addEventListener("click", function () {
+    if (expanded === p.n) {
+      expanded = null;
+    } else {
+      expanded = p.n;
+      showClosure = false;
+      showRev = false;
+      showGap = false;
+      if (!officialMode && detailState === "none") loadDetail();
+    }
+    render();
+  });
+  row.appendChild(info);
+  item.appendChild(row);
+  if (expanded === p.n) item.appendChild(detailFor(p));
+  return item;
+}
+
+/* ---------- 搜索 ---------- */
+
+// 查询按空格分词，每个词都要命中（AND）。原先是整串当子串匹配，于是
+// "luci ddns"、"kmod usb storage" 这种最自然的输入一条都搜不到。
+//
+// 打分统一用 fzy 那套子序列 DP，不再分「子串命中」「模糊命中」两档。
+// 分档试过，问题在于两套分数没法比较：中间位置的子串命中会无条件压过
+// 任何模糊命中，搜 lai 时 gnunet-reclaim（rec·lai·m）就排在
+// luci-app-airoha-npu 前面。统一打分则天然处理好了 —— 连续命中有连击
+// 加成、词首命中有边界加成，完整子串本来就会拿到最高分。
+
+var SEP = "-_./";     // 包名里的词分隔符，命中词首要加权
+var TITLE_HIT = 0.5;  // 词只在描述里出现时的固定低分
+
+function isSubseq(q, str) {
+  var i = 0;
+  for (var j = 0; j < str.length; j++) {
+    if (str.charCodeAt(j) === q.charCodeAt(i)) {
+      i++;
+      if (i === q.length) return true;
+    }
+  }
+  return false;
+}
+
+// 词分隔符的字符码：- _ . /。内层循环里用数值比较，
+// 别写成 SEP.indexOf(str.charAt(j-1)) —— 那样每格都要新建一个单字符串，
+// 实测是整个 DP 最大的开销来源。
+function isSep(c) { return c === 45 || c === 95 || c === 46 || c === 47; }
+
+// fzy 式 DP，取子序列的最优对齐，分越高越好。
+// 必须用 DP 而不是贪心：查 lappw 时贪心会吃掉 luci-app 里的第二个 p，
+// 错过 passwall 开头那个位于词边界的 p，对齐质量就算错了。
+// 所有缓冲区全局复用，否则每次按键要为上千个候选各分配几个数组。
+var BUF = 512;
+var bonB = new Float64Array(BUF);
+var aD = new Float64Array(BUF), aM = new Float64Array(BUF);
+var bD = new Float64Array(BUF), bM = new Float64Array(BUF);
+
+function fuzzyScore(q, str) {
+  var n = q.length, m = str.length;
+  if (!n || !m || m > BUF) return 0;
+  var NEG = -1e9, GAP_LEAD = -0.005, GAP_INNER = -0.01, GAP_TRAIL = -0.005;
+  var i, j;
+
+  // 词首加成按包名算一次就够，别塞进 DP 内层
+  bonB[0] = 0.9;
+  for (j = 1; j < m; j++) bonB[j] = isSep(str.charCodeAt(j - 1)) ? 0.8 : 0;
+
+  // 滚动两行，靠换引用代替逐格复制
+  var curD = aD, curM = aM, prvD = bD, prvM = bM, t;
+  for (j = 0; j < m; j++) { prvD[j] = NEG; prvM[j] = NEG; }
+
+  for (i = 0; i < n; i++) {
+    var qc = q.charCodeAt(i);
+    var gap = (i === n - 1) ? GAP_TRAIL : GAP_INNER;
+    var prev = NEG;
+    var first = (i === 0);
+    for (j = 0; j < m; j++) {
+      if (qc === str.charCodeAt(j)) {
+        var sc = NEG;
+        if (first) sc = j * GAP_LEAD + bonB[j];
+        else if (j > 0) {
+          var a = prvM[j - 1] + bonB[j];
+          var b = prvD[j - 1] + 1.0;
+          sc = a > b ? a : b;
+        }
+        curD[j] = sc;
+        prev = sc > prev + gap ? sc : prev + gap;
+        curM[j] = prev;
+      } else {
+        curD[j] = NEG;
+        prev = prev + gap;
+        curM[j] = prev;
+      }
+    }
+    t = prvD; prvD = curD; curD = t;
+    t = prvM; prvM = curM; curM = t;
+  }
+  return prvM[m - 1];
+}
+
+// 每个词的命中方式：1 = 名字子序列（要打分），0 = 只在描述里（固定低分）
+var kindBuf = [];
+
+function searchPool(pool, q) {
+  var terms = q.split(/\s+/).filter(function (x) { return !!x; });
+  if (!terms.length) return pool;
+  var nt = terms.length;
+  var hits = [];
+  pool.forEach(function (p) {
+    var i;
+    // 先用廉价的子序列判断把所有词过一遍，全过了才打分。
+    // 不这么分两步的话，搜 "luci ddns" 会先为 luci 在上万个包上跑完 DP，
+    // 再由 ddns 把结果砍到几十条 —— 绝大部分 DP 白算。
+    for (i = 0; i < nt; i++) {
+      if (isSubseq(terms[i], p._n)) kindBuf[i] = 1;
+      else if (p._t.indexOf(terms[i]) >= 0) kindBuf[i] = 0;
+      else return;
+    }
+    var total = 0;
+    for (i = 0; i < nt; i++) {
+      total += kindBuf[i] ? fuzzyScore(terms[i], p._n) : TITLE_HIT;
+    }
+    hits.push([total, p]);
+  });
+  // 同分时短名优先：更短通常更贴题，luci-app-ddns 该排在 luci-i18n-ddns-ar 前面
+  hits.sort(function (a, b) {
+    return b[0] - a[0] || a[1]._n.length - b[1]._n.length ||
+           (a[1]._n < b[1]._n ? -1 : 1);
+  });
+  return hits.map(function (x) { return x[1]; });
+}
+
+function renderFlat(list, pool) {
+  pool.slice(0, MAX_FLAT).forEach(function (p) { list.appendChild(rowFor(p)); });
+  if (pool.length > MAX_FLAT) {
+    list.appendChild(el("div", "empty",
+      "另有 " + (pool.length - MAX_FLAT) + " 条未显示" +
+      ($("q").value.trim().length >= 2 ? "（已按相关度排序，越靠前越贴合）" : "（按名字排序，可用搜索缩小范围）")));
+  }
+}
+
+// 默认视图按 Category / Submenu 折叠，展开时才建 DOM，
+// 否则几千个复选框一次铺开在手机上要卡好几秒
+function renderTree(list, pool) {
+  var cats = {}, order = [];
+  pool.forEach(function (p) {
+    var c = p.c || "其它";
+    if (!cats[c]) { cats[c] = []; order.push(c); }
+    cats[c].push(p);
+  });
+  order.sort();
+  order.forEach(function (c) {
+    var d = el("details", "grp");
+    var sm = el("summary");
+    sm.appendChild(el("span", null, c));
+    sm.appendChild(el("span", "n", "(" + cats[c].length + ")"));
+    d.appendChild(sm);
+    // 展开中的包所在的分组要保持打开，否则点了依赖跳转过来会看不见
+    var hasExpanded = expanded && cats[c].some(function (p) { return p.n === expanded; });
+    if (hasExpanded) d.open = true;
+    var filled = false;
+    var fill = function () {
+      if (filled) return;
+      filled = true;
+      var subs = {}, so = [];
+      cats[c].forEach(function (p) {
+        var s = p.s || "";
+        if (!subs[s]) { subs[s] = []; so.push(s); }
+        subs[s].push(p);
+      });
+      so.sort();
+      so.forEach(function (s) {
+        if (s) d.appendChild(el("div", "sub2", s));
+        subs[s].forEach(function (p) { d.appendChild(rowFor(p)); });
+      });
+    };
+    d.addEventListener("toggle", function () { if (d.open) fill(); });
+    if (hasExpanded) fill();
+    list.appendChild(d);
+  });
+}
+
+function render() {
+  var list = $("list");
+  list.textContent = "";
+  var q = $("q").value.trim().toLowerCase();
+  computeFirmware();
+  var pool = pkgs;
+  if (view === "chg") pool = pool.filter(function (p) { return !!changes[p.n]; });
+  else if (view === "fw") pool = pool.filter(function (p) { return !!fwSet[p.i]; });
+  if (view === "fw") list.appendChild(fwSummary(pool));
+  if (q.length >= 2) pool = searchPool(pool, q);
+
+  if (!pkgs.length) {
+    // 索引没加载成功，状态行已经说明原因，这里不重复
+  } else if (officialMode && q.length < 2 && view === "all") {
+    list.appendChild(el("div", "empty",
+      "官方索引只有包名，一万多条铺不开，也没有分类可折叠。请在上方搜索框输入至少 2 个字符查找。"));
+  } else if (!pool.length) {
+    list.appendChild(el("div", "empty", view === "chg" ? "还没有任何改动"
+      : (q.length >= 2 ? "没有匹配的软件包" : "输入关键词，或展开下面的分类")));
+  } else if (q.length >= 2 || view !== "all" || officialMode) {
+    renderFlat(list, pool);
+  } else {
+    renderTree(list, pool);
+  }
+
+  var o = output();
+  $("outbox").value = o.str;
+  var t = $("tally");
+  t.textContent = "";
+  if (!o.add.length && !o.del.length) {
+    t.textContent = "未做任何改动";
+  } else {
+    if (o.add.length) t.appendChild(el("span", "a", "新增 " + o.add.length + " 个"));
+    if (o.add.length && o.del.length) t.appendChild(el("span", null, "，"));
+    if (o.del.length) t.appendChild(el("span", "d", "移除 " + o.del.length + " 个"));
+  }
+}
+
+/* ---------- 数据源 ---------- */
+
+function setStatus(text, cls) {
+  var s = $("status");
+  s.className = "meta" + (cls ? " " + cls : "");
+  s.textContent = text;
+}
+
+function apply(list, official, text, cls) {
+  pkgs = list;
+  byName = {};
+  pkgs.forEach(function (p, i) {
+    p.i = i;
+    // 预先存一份小写，否则每敲一个键要把一万三千个包重新 toLowerCase
+    p._n = p.n.toLowerCase();
+    p._t = (p.t || "").toLowerCase();
+    byName[p.n] = p;
+  });
+  officialMode = official;
+  setStatus(text, cls);
+  loadChanges();
+  render();
+}
+
+function resetData() {
+  pkgs = [];
+  byName = {};
+  detail = null;
+  rev = null;
+  detailState = "none";
+  cloCache = {};
+  fwSet = null;
+  fwPulled = null;
+  expanded = null;
+  showClosure = false;
+  showRev = false;
+  showGap = false;
+}
+
+function loadOfficial(fallbackReason) {
+  var base = OFFICIAL[branch];
+  if (!base) {
+    apply([], true, "没有为 " + branch + " 配置官方索引地址。", "err");
+    return;
+  }
+  setStatus((fallbackReason ? fallbackReason + " " : "") + "正在从 immortalwrt 官方源取包名清单…",
+            fallbackReason ? "warn" : null);
+  Promise.all(FEEDS.map(function (f) {
+    return fetch(base + f + "/index.json", { cache: "no-cache" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (d) { return { f: f, p: d.packages || {} }; })
+      .catch(function () { return { f: f, p: null }; });
+  })).then(function (rs) {
+    var list = [], failed = [];
+    rs.forEach(function (r) {
+      if (!r.p) { failed.push(r.f); return; }
+      Object.keys(r.p).forEach(function (n) {
+        // 官方索引只有名字和版本，描述位只能放 feed 名
+        list.push({ n: n, v: r.p[n], t: r.f, c: "", s: "" });
+      });
+    });
+    if (!list.length) {
+      apply([], true, "官方索引也取不到（" + failed.join("、") +
+        "）。可能是网络不通，或下载站正在更新，稍后再试。", "err");
+      return;
+    }
+    list.sort(function (a, b) { return a.n < b.n ? -1 : (a.n > b.n ? 1 : 0); });
+    var msg = (fallbackReason ? fallbackReason + " 已回落到官方索引：" : "immortalwrt 官方索引：") +
+      "共 " + list.length + " 个包名。官方索引整份数据只有包名和版本，没有描述、分类、" +
+      "依赖与冲突，也不含 kmod 和本仓库自建包，更不保证这条源码树都编得出来 —— " +
+      "真编不出来的，workflow 会在编译前就报错拦下。";
+    if (failed.length) msg += " 另有 " + failed.length + " 个 feed 取失败：" + failed.join("、") + "。";
+    apply(list, true, msg, "warn");
+  });
+}
+
+function loadBuilt() {
+  setStatus("加载 " + branch + " 的编译索引…");
+  fetch("packages-" + branch + ".json", { cache: "no-cache" })
+    .then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    })
+    .then(function (d) {
+      var list = d.packages || [];
+      var base = list.filter(function (p) { return p.sel === 2; }).length;
+      apply(list, false, "共 " + list.length + " 个可选软件包 · 索引来自 " +
+        (d.tag || "未知") + " · 基础配置已含 " + base +
+        " 个 · 行尾标记这个包刷完机还能不能装，点 ⓘ 看依赖与冲突");
+      // 详情表 gzip 后只有几十 KB，后台顺手取回来。行尾的可装性
+      // 标记要用它里的依赖图，顺便让点 ⓘ 变成即开即显
+      loadDetail();
+    })
+    .catch(function (e) {
+      loadOfficial("取不到 " + branch + " 的编译索引（" + e.message + "），这条线可能还没生成过索引。");
+    });
+}
+
+function load() {
+  var official = source.indexOf(OFFICIAL_PREFIX) === 0;
+  branch = official ? source.slice(OFFICIAL_PREFIX.length) : source;
+  resetData();
+  $("list").textContent = "";
+  if (official) loadOfficial(null);
+  else loadBuilt();
+}
+
+OPTIONS.forEach(function (o) {
+  var opt = document.createElement("option");
+  opt.value = o.v;
+  opt.textContent = o.t;
+  $("src").appendChild(opt);
+});
+source = store("src") || OPTIONS[0].v;
+if (!OPTIONS.some(function (o) { return o.v === source; })) source = OPTIONS[0].v;
+$("src").value = source;
+
+$("src").addEventListener("change", function () {
+  source = this.value;
+  store("src", source);
+  view = "all";
+  $("view").value = "all";
+  load();
+});
+var qTimer = null;
+$("q").addEventListener("input", function () {
+  // 一万三千个包上最坏几十毫秒，逐键渲染在手机上会顿；60ms 防抖足够跟手
+  expanded = null;
+  if (qTimer) clearTimeout(qTimer);
+  qTimer = setTimeout(function () { qTimer = null; render(); }, 60);
+});
+$("view").addEventListener("change", function () {
+  view = this.value;
+  expanded = null;
+  render();
+});
+$("reset").addEventListener("click", function () {
+  if (!Object.keys(changes).length) return;
+  changes = {};
+  saveChanges();
+  render();
+});
+$("copy").addEventListener("click", function () {
+  var box = $("outbox");
+  if (!box.value) return;
+  var done = function () {
+    var b = $("copy");
+    b.textContent = "已复制";
+    setTimeout(function () { b.textContent = "复制"; }, 1200);
+  };
+  var fallback = function () {
+    box.removeAttribute("readonly");
+    box.select();
+    document.execCommand("copy");
+    box.setAttribute("readonly", "readonly");
+    done();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(box.value).then(done, fallback);
+  } else {
+    fallback();
+  }
+});
+
+load();
+</script>
+</body>
+</html>
