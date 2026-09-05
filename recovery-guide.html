@@ -178,7 +178,7 @@ details.faq .a{color:var(--c2);margin-top:.5rem}
       <li><span class="box"></span><div><b>网线一根 + 一台电脑</b><div class="sub">只用来连这台路由器，不需要能上外网。固件先在<a href="#files">上方</a>下好。页面按桌面浏览器设计，手机也能用。</div></div></li>
       <li><span class="box"></span><div><b>USB 转 TTL 串口模块<span class="only">仅首次迁移</span></b><div class="sub">3.3V 电平的那种（不是 RS232），CH340 一类都行，带 3 根杜邦线。之后日常用网页就不再需要它。</div></div></li>
       <li><span class="box"></span><div><b>支持 Xmodem 发送的串口终端<span class="only">仅首次迁移</span></b><div class="sub">Windows 上 MobaXterm、SecureCRT、Xshell 都自带「发送文件 → Xmodem」；macOS / Linux 用 <code>minicom</code>，或装 <code>lrzsz</code> 后在 <code>screen</code> 里用 <code>sx</code>。</div></div></li>
-      <li><span class="box"></span><div><b>先做一次整机 flash 备份<span class="only">仅首次迁移</span></b><div class="sub">首次迁移会清空原厂分区，其中 <code>ri</code>（MAC / 序列号）和 <code>bosa</code>（光模块校准）是这台机器独有的、没有第二份。备份方法见仓库文档 <code>docs/backup-and-restore.md</code>。备份的 <code>all_flash.bin</code> 以后能在网页里整片刷回原厂。</div></div></li>
+      <li><span class="box"></span><div><b>先做一次整机 flash 备份<span class="only">仅首次迁移</span></b><div class="sub">首次迁移会清空原厂分区，其中 <code>ri</code>（MAC / 序列号）和 <code>bosa</code>（光模块校准）是这台机器独有的、没有第二份。备份方法见 <a href="https://github.com/Loong1996/ImmortalWrt-Airoha/blob/main/docs/backup-and-restore.md" target="_blank" rel="noopener">原厂备份与刷回原厂</a>。备份的 <code>all_flash.bin</code> 以后能在网页里整片刷回原厂。</div></div></li>
     </ul>
   </section>
 
@@ -482,9 +482,14 @@ Handing out DHCP leases from 192.168.1.1</div>
       var dark=matchMedia("(prefers-color-scheme:dark)").matches;d.documentElement.setAttribute("data-t",dark?"dark":"light");
       // 稿子里不真的提交
       var form=d.querySelector("form");if(form)form.onsubmit=function(){try{w.ask()}catch(e){}return false};
-      setTimeout(function(){try{STATES[f.getAttribute("data-state")](w,d)}catch(e){}
-        var h=d.documentElement.scrollHeight;if(h>200)f.style.height=(h+2)+"px"},30)});
+      setTimeout(function(){try{STATES[f.getAttribute("data-state")](w,d)}catch(e){}fit(f)},30)});
     f.setAttribute("srcdoc",doc)});
+  // 量一次不够：窗口缩放、手机横竖屏都会让里面重新折行，高度却停在第一次量到的值。
+  function fit(f){try{var d=f.contentDocument;if(!d||!d.documentElement)return;var h=d.documentElement.scrollHeight;if(h>200)f.style.height=(h+2)+"px"}catch(e){}}
+  var widths=[];
+  function refit(f,i){var w=f.clientWidth;if(widths[i]===w)return;widths[i]=w;fit(f)}
+  if(window.ResizeObserver){var ro=new ResizeObserver(function(es){es.forEach(function(e){refit(e.target,frames.indexOf(e.target))})});frames.forEach(function(f){ro.observe(f)})}
+  else{addEventListener("resize",function(){frames.forEach(refit)})}
 })();
 </script>
 
