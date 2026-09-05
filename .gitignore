@@ -5,3 +5,7 @@ actions-runner/
 # 原厂分区备份：含 telnet/su/超管密码、真实 MAC 与配置数据，不进公开仓库
 XG-040G-MF_原厂系统分区备份/
 mtd*.bin
+
+# 系统生成的杂物
+.DS_Store
+Thumbs.db
