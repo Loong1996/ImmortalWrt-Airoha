@@ -23,6 +23,7 @@ MSG=$2
 
 need() { [ -e "$1" ] || { echo "::error::缺少 $1"; exit 1; }; }
 need "$GITHUB_WORKSPACE/portal/index.html"
+need "$GITHUB_WORKSPACE/portal/hardware-mod.html"
 need "$GITHUB_WORKSPACE/selector/index.html"
 need "$GITHUB_WORKSPACE/guide/recovery-guide.html"
 
@@ -41,6 +42,7 @@ git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
 stage() {
   cp "$GITHUB_WORKSPACE/portal/index.html" "$GH/index.html"
+  cp "$GITHUB_WORKSPACE/portal/hardware-mod.html" "$GH/hardware-mod.html"
   cp "$GITHUB_WORKSPACE/selector/index.html" "$GH/packages.html"
   cp "$GITHUB_WORKSPACE/guide/recovery-guide.html" "$GH/recovery-guide.html"
   # 旧版存档：recovery-guide_<版本>.html 一律带上，由新版教程里的「旧版」
