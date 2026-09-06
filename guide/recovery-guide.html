@@ -128,7 +128,6 @@ details.faq .a{color:var(--c2);margin-top:.5rem}
 .st.ok{color:#1f8a3b;background:rgba(52,199,89,.15)}.st.wip{color:#b8500f;background:rgba(255,159,10,.15)}
 .rail button.n{display:flex;align-items:center;gap:.5rem;padding:.32rem .55rem;border-radius:6px;color:var(--fg);font-size:.92rem;border:0;background:transparent;font:inherit;width:100%;text-align:left;cursor:pointer}
 .rail button.n:hover{background:rgba(0,0,0,.05)}
-.rail span.n.qq{cursor:default;color:var(--c2)}
 .rail .ic.i7{background:#ff375f}.rail .ic.i8{background:#34c759}.rail .ic.i9{background:#0a84ff}
 .rmask{position:fixed;inset:0;background:rgba(0,0,0,.28);display:none;align-items:center;justify-content:center;padding:1rem;z-index:99}
 .rmask[data-on]{display:flex}
@@ -142,7 +141,10 @@ details.faq .a{color:var(--c2);margin-top:.5rem}
 <div class="page">
 <nav class="rail" aria-label="目录">
   <div class="id"><b>网页 U-Boot 指南</b><small>Airoha Web U-Boot 0.2.0</small></div>
-  <a class="back" href="./">← 回门户</a>
+  <a class="n" href="./"><span class="ic i9"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></span>回门户</a>
+  <button type="button" class="n" onclick="openReward()"><span class="ic i7"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.8-9.6-8.7C.9 9 2.7 5.5 6.3 5.5c2.2 0 3.4 1.2 3.9 2.1.5-.9 1.7-2.1 3.9-2.1 3.6 0 5.4 3.5 3.9 6.3C19.5 15.7 12 20.5 12 20.5z"/></svg></span>请作者喝咖啡</button>
+  <a class="n" href="./hardware-mod.html"><span class="ic i8"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0 5 5L9 22l-3-3L16.7 8.3a4 4 0 0 0-2-2z"/><path d="M3 3l6 6"/></svg></span>硬件改造服务</a>
+  <button type="button" class="n" onclick="copyQQ(this)"><span class="ic i9"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span><span class="lbl">QQ 群 1092754041</span></button>
   <span class="tag">开始</span>
   <a class="n" href="#decide"><span class="ic i4"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span>先判断你在哪一步</a>
   <a class="n" href="#models"><span class="ic i1"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>支持机型</a>
@@ -164,10 +166,6 @@ details.faq .a{color:var(--c2);margin-top:.5rem}
   <span class="tag">其他</span>
   <a class="n" href="#faq"><span class="ic i4"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 1-1 1.7M12 17h.01"/></svg></span>常见问题</a>
   <a class="n" href="./recovery-guide_0_1_1.html"><span class="ic i4"><svg viewBox="0 0 24 24"><path d="M12 8v4l3 3M3 12a9 9 0 1 0 9-9"/></svg></span>0.1.1 存档教程</a>
-  <span class="tag">支持作者</span>
-  <button type="button" class="n" onclick="openReward()"><span class="ic i7"><svg viewBox="0 0 24 24"><path d="M17 8h1a4 4 0 1 1 0 8h-1M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4zM6 2v3M10 2v3M14 2v3"/></svg></span>请作者喝咖啡</button>
-  <a class="n" href="./hardware-mod.html"><span class="ic i8"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0 5 5L9 22l-3-3L16.7 8.3a4 4 0 0 0-2-2z"/><path d="M3 3l6 6"/></svg></span>硬件改造服务</a>
-  <span class="n qq"><span class="ic i9"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg></span>QQ 群 1092754041</span>
 </nav>
 <main>
   <header class="hero">
@@ -535,6 +533,8 @@ Handing out DHCP leases from 192.168.1.1</div>
 <script>
 function openReward(){document.getElementById('rewardModal').setAttribute('data-on','');}
 function closeReward(){document.getElementById('rewardModal').removeAttribute('data-on');}
+function copyQQ(el){var n='1092754041';function ok(){var t=el.querySelector('.lbl'),o=t.textContent;t.textContent='已复制 '+n;setTimeout(function(){t.textContent=o},1500)}
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(n).then(ok,ok)}else{var i=document.createElement('input');i.value=n;document.body.appendChild(i);i.select();try{document.execCommand('copy')}catch(e){}document.body.removeChild(i);ok()}}catch(e){ok()}}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeReward();});
 </script>
 </body>
