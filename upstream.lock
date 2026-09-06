@@ -8,8 +8,8 @@
 
 UPSTREAM_REPO=https://github.com/immortalwrt/immortalwrt.git
 UPSTREAM_BRANCH=master
-UPSTREAM_COMMIT=db5c5de56a4ca86b4f1705d38f343ab0075d185c
-UPSTREAM_DATE=2026-08-28
+UPSTREAM_COMMIT=a6215104b8bbfe4bec634ee532cdcf8235380692
+UPSTREAM_DATE=2026-09-04
 
 SOURCE_REPO=https://github.com/Loong1996/immortalwrt.git
 SOURCE_BRANCH=master-airoha

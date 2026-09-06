@@ -1,0 +1,506 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <0x02>;
+	#size-cells = <0x02>;
+	compatible = "nokia,xg-040g-mf\0airoha,an7583";
+	interrupt-parent = <0x01>;
+	model = "Nokia XG-040G-MF";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlycon";
+		linux,usable-memory-range = <0x00 0x80200000 0x00 0x1fe00000>;
+		stdout-path = "serial0:115200n8";
+	};
+
+	cpus {
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
+
+		cpu-map {
+
+			cluster0 {
+
+				core0 {
+					cpu = <0x02>;
+				};
+
+				core1 {
+					cpu = <0x03>;
+				};
+			};
+		};
+
+		cpu@0 {
+			#cooling-cells = <0x02>;
+			compatible = "arm,cortex-a53";
+			device_type = "cpu";
+			enable-method = "psci";
+			next-level-cache = <0x04>;
+			phandle = <0x02>;
+			reg = <0x00>;
+		};
+
+		cpu@1 {
+			#cooling-cells = <0x02>;
+			compatible = "arm,cortex-a53";
+			device_type = "cpu";
+			enable-method = "psci";
+			next-level-cache = <0x04>;
+			phandle = <0x03>;
+			reg = <0x01>;
+		};
+
+		l2-cache {
+			cache-level = <0x02>;
+			cache-line-size = <0x40>;
+			cache-size = <0x80000>;
+			cache-unified;
+			compatible = "cache";
+			phandle = <0x04>;
+		};
+	};
+
+	keys {
+		compatible = "gpio-keys";
+
+		button-0 {
+			gpios = <0x0e 0x00 0x01>;
+			label = "reset";
+			linux,code = <0x198>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-0 {
+			gpios = <0x0e 0x06 0x01>;
+			label = "green:wan";
+		};
+
+		led-1 {
+			gpios = <0x0e 0x07 0x01>;
+			label = "green:online";
+		};
+
+		led-2 {
+			gpios = <0x0e 0x19 0x01>;
+			label = "green:power";
+		};
+
+		led-3 {
+			gpios = <0x0e 0x1a 0x01>;
+			label = "green:usb-1";
+		};
+
+		led-4 {
+			gpios = <0x0e 0x1b 0x01>;
+			label = "red:wan";
+		};
+
+		led-5 {
+			gpios = <0x0e 0x21 0x01>;
+			label = "green:usb-2";
+		};
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x00 0x80000000 0x00 0x20000000>;
+	};
+
+	oscillator {
+		#clock-cells = <0x00>;
+		clock-frequency = <0x17d7840>;
+		clock-output-names = "clkxtal";
+		compatible = "fixed-clock";
+		phandle = <0x09>;
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+
+	regulator-vmmc-3v3 {
+		compatible = "regulator-fixed";
+		phandle = <0x0a>;
+		regulator-always-on;
+		regulator-max-microvolt = <0x325aa0>;
+		regulator-min-microvolt = <0x325aa0>;
+		regulator-name = "vmmc";
+	};
+
+	reserved-memory {
+		#address-cells = <0x02>;
+		#size-cells = <0x02>;
+		ranges;
+
+		atf-reserved-memory@80000000 {
+			no-map;
+			reg = <0x00 0x80000000 0x00 0x40000>;
+		};
+
+		npu-binary@84000000 {
+			no-map;
+			reg = <0x00 0x84000000 0x00 0xa00000>;
+		};
+
+		npu-flag@84b0000 {
+			no-map;
+			reg = <0x00 0x84b00000 0x00 0x100000>;
+		};
+
+		npu-phyaddr@86b00000 {
+			no-map;
+			reg = <0x00 0x86b00000 0x00 0x100000>;
+		};
+
+		npu-pkt@85000000 {
+			no-map;
+			reg = <0x00 0x85000000 0x00 0x1a00000>;
+		};
+
+		npu-rxdesc@86d00000 {
+			no-map;
+			reg = <0x00 0x86d00000 0x00 0x100000>;
+		};
+	};
+
+	soc {
+		#address-cells = <0x02>;
+		#size-cells = <0x02>;
+		compatible = "simple-bus";
+		ranges;
+
+		ethernet@1fb50000 {
+			compatible = "airoha,an7583-eth";
+			reg = <0x00 0x1fb50000 0x00 0x2600 0x00 0x1fb54000 0x00 0x2000 0x00 0x1fb56000 0x00 0x2000>;
+			reg-names = "fe\0qdma0\0qdma1";
+			reset-names = "fe\0pdma\0qdma\0hsi0-mac\0hsi1-mac\0xfp-mac";
+			resets = <0x05 0x28 0x05 0x1a 0x05 0x1b 0x05 0x0d 0x05 0x0e 0x05 0x16>;
+
+			ethernet@1 {
+				compatible = "airoha,eth-mac";
+				phy-mode = "internal";
+				reg = <0x01>;
+				status = "okay";
+
+				fixed-link {
+					full-duplex;
+					pause;
+					speed = <0x2710>;
+				};
+			};
+
+			ethernet@2 {
+				compatible = "airoha,eth-mac";
+				pcs = <0x06>;
+				reg = <0x02>;
+				status = "disabled";
+			};
+
+			ethernet@3 {
+				compatible = "airoha,eth-mac";
+				pcs = <0x07>;
+				reg = <0x03>;
+				status = "disabled";
+			};
+		};
+
+		i2c0@1fbf8000 {
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+			clock-frequency = <0x186a0>;
+			clocks = <0x08>;
+			compatible = "mediatek,mt7621-i2c";
+			reg = <0x00 0x1fbf8000 0x00 0x100>;
+			status = "okay";
+		};
+
+		i2c1@1fbf8100 {
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+			clock-frequency = <0x186a0>;
+			clocks = <0x08>;
+			compatible = "mediatek,mt7621-i2c";
+			reg = <0x00 0x1fbf8100 0x00 0x100>;
+			status = "disable";
+		};
+
+		i2cclock@0 {
+			#clock-cells = <0x00>;
+			clock-frequency = <0x1312d00>;
+			compatible = "fixed-clock";
+			phandle = <0x08>;
+		};
+
+		interrupt-controller@9000000 {
+			#address-cells = <0x01>;
+			#interrupt-cells = <0x03>;
+			#size-cells = <0x01>;
+			compatible = "arm,gic-v3";
+			interrupt-controller;
+			interrupts = <0x01 0x09 0x08>;
+			phandle = <0x01>;
+			reg = <0x00 0x9000000 0x00 0x20000 0x00 0x9080000 0x00 0x80000 0x00 0x9400000 0x00 0x2000 0x00 0x9500000 0x00 0x2000 0x00 0x9600000 0x00 0x20000>;
+		};
+
+		mmc@1fa0e000 {
+			assigned-clock-rates = <0xbebc200>;
+			assigned-clocks = <0x05 0x08>;
+			bus-width = <0x04>;
+			cap-mmc-highspeed;
+			clock-names = "source\0hclk";
+			clocks = <0x05 0x08 0x09>;
+			compatible = "mediatek,mt7622-mmc";
+			disable-wp;
+			interrupts = <0x00 0xaa 0x04>;
+			max-frequency = <0x3197500>;
+			non-removable;
+			reg = <0x00 0x1fa0e000 0x00 0x1000 0x00 0x1fa0c000 0x00 0x60>;
+			vmmc-supply = <0x0a>;
+		};
+
+		pcie@1fc00000 {
+			#address-cells = <0x03>;
+			#interrupt-cells = <0x01>;
+			#size-cells = <0x02>;
+			bus-range = <0x00 0xff>;
+			clock-names = "sys-ck";
+			clocks = <0x05 0x07>;
+			compatible = "airoha,an7583-pcie";
+			device_type = "pci";
+			interrupt-map = <0x00 0x00 0x00 0x01 0x0c 0x00 0x00 0x00 0x00 0x02 0x0c 0x01 0x00 0x00 0x00 0x03 0x0c 0x02 0x00 0x00 0x00 0x04 0x0c 0x03>;
+			interrupt-map-mask = <0x00 0x00 0x00 0x07>;
+			interrupts = <0x00 0x27 0x04>;
+			linux,pci-domain = <0x00>;
+			phy-names = "pcie-phy";
+			phys = <0x0b>;
+			ranges = <0x2000000 0x00 0x20000000 0x00 0x20000000 0x00 0x4000000>;
+			reg = <0x00 0x1fc20000 0x00 0x1670>;
+			reg-names = "pcie-mac";
+			reset-names = "phy-lane0\0phy-lane1";
+			resets = <0x05 0x2c 0x05 0x2d>;
+			status = "disabled";
+
+			interrupt-controller {
+				#address-cells = <0x00>;
+				#interrupt-cells = <0x01>;
+				interrupt-controller;
+				phandle = <0x0c>;
+			};
+		};
+
+		pcie@1fc20000 {
+			#address-cells = <0x03>;
+			#interrupt-cells = <0x01>;
+			#size-cells = <0x02>;
+			bus-range = <0x00 0xff>;
+			clock-names = "sys-ck";
+			clocks = <0x05 0x07>;
+			compatible = "airoha,an7583-pcie";
+			device_type = "pci";
+			interrupt-map = <0x00 0x00 0x00 0x01 0x0d 0x00 0x00 0x00 0x00 0x02 0x0d 0x01 0x00 0x00 0x00 0x03 0x0d 0x02 0x00 0x00 0x00 0x04 0x0d 0x03>;
+			interrupt-map-mask = <0x00 0x00 0x00 0x07>;
+			interrupts = <0x00 0x28 0x04>;
+			linux,pci-domain = <0x01>;
+			phy-names = "pcie-phy";
+			phys = <0x0b>;
+			ranges = <0x2000000 0x00 0x24000000 0x00 0x24000000 0x00 0x4000000>;
+			reg = <0x00 0x1fa92000 0x00 0x1670>;
+			reg-names = "pcie-mac";
+			reset-names = "phy-lane0\0phy-lane1";
+			resets = <0x05 0x2c 0x05 0x2d>;
+			status = "disabled";
+
+			interrupt-controller {
+				#address-cells = <0x00>;
+				#interrupt-cells = <0x01>;
+				interrupt-controller;
+				phandle = <0x0d>;
+			};
+		};
+
+		pcs@1fa08000 {
+			airoha,scu = <0x05>;
+			compatible = "airoha,an7583-pcs-pon";
+			phandle = <0x06>;
+			reg = <0x00 0x1fa08000 0x00 0x1000 0x00 0x1fa80000 0x00 0x60 0x00 0x1fa80a00 0x00 0x164 0x00 0x1fa84000 0x00 0x450 0x00 0x1fa85900 0x00 0x338 0x00 0x1fa86000 0x00 0x300 0x00 0x1fa8f000 0x00 0x1000 0x00 0x1fa8e000 0x00 0x1000>;
+			reg-names = "xfi_mac\0hsgmii_an\0hsgmii_pcs\0multi_sgmii\0usxgmii\0hsgmii_rate_adp\0xfi_ana\0xfi_pma";
+			reset-names = "mac\0phy\0xfi";
+			resets = <0x05 0x30 0x05 0x00 0x05 0x0f>;
+		};
+
+		pcs@1fa09000 {
+			airoha,scu = <0x05>;
+			compatible = "airoha,an7583-pcs-eth";
+			phandle = <0x07>;
+			reg = <0x00 0x1fa09000 0x00 0x1000 0x00 0x1fa70000 0x00 0x60 0x00 0x1fa70a00 0x00 0x164 0x00 0x1fa74000 0x00 0x450 0x00 0x1fa75900 0x00 0x338 0x00 0x1fa76000 0x00 0x300 0x00 0x1fa7f000 0x00 0x1000 0x00 0x1fa7e000 0x00 0x1000>;
+			reg-names = "xfi_mac\0hsgmii_an\0hsgmii_pcs\0multi_sgmii\0usxgmii\0hsgmii_rate_adp\0xfi_ana\0xfi_pma";
+			reset-names = "mac\0phy";
+			resets = <0x05 0x07 0x05 0x08>;
+		};
+
+		phy@1fa5a000 {
+			#phy-cells = <0x00>;
+			compatible = "airoha,en7581-pcie-phy";
+			phandle = <0x0b>;
+			reg = <0x00 0x1fa5a000 0x00 0xfff 0x00 0x1fa5b000 0x00 0xfff 0x00 0x1fa5c000 0x00 0xfff 0x00 0x1fc10044 0x00 0x04 0x00 0x1fc30044 0x00 0x04 0x00 0x1fc15030 0x00 0x104>;
+			reg-names = "csr-2l\0pma0\0pma1\0p0-xr-dtime\0p1-xr-dtime\0rx-aeq";
+		};
+
+		serial@1fbe1000 {
+			clock-frequency = <0x708000>;
+			compatible = "airoha,en7523-uart";
+			interrupts = <0x00 0x36 0x04>;
+			reg = <0x00 0x1fbe1000 0x00 0x40>;
+			reg-io-width = <0x04>;
+			reg-shift = <0x02>;
+			status = "disabled";
+		};
+
+		serial@1fbf0000 {
+			bootph-all;
+			clock-frequency = <0x1c2000>;
+			compatible = "ns16550";
+			interrupts = <0x00 0x12 0x04>;
+			reg = <0x00 0x1fbf0000 0x00 0x30>;
+			reg-io-width = <0x04>;
+			reg-shift = <0x02>;
+		};
+
+		serial@1fbf0300 {
+			clock-frequency = <0x708000>;
+			compatible = "airoha,en7523-uart";
+			interrupts = <0x00 0x20 0x04>;
+			reg = <0x00 0x1fbf0300 0x00 0x30>;
+			reg-io-width = <0x04>;
+			reg-shift = <0x02>;
+			status = "disabled";
+		};
+
+		serial@1fbf0600 {
+			clock-frequency = <0x708000>;
+			compatible = "airoha,en7523-uart";
+			interrupts = <0x00 0x3d 0x04>;
+			reg = <0x00 0x1fbf0600 0x00 0x30>;
+			reg-io-width = <0x04>;
+			reg-shift = <0x02>;
+			status = "disabled";
+		};
+
+		serial@1fbf0700 {
+			clock-frequency = <0x708000>;
+			compatible = "airoha,en7523-uart";
+			interrupts = <0x00 0x12 0x04>;
+			reg = <0x00 0x1fbf0700 0x00 0x30>;
+			reg-io-width = <0x04>;
+			reg-shift = <0x02>;
+			status = "disabled";
+		};
+
+		spi@1fa10000 {
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+			clock-names = "spi";
+			clocks = <0x05 0x04>;
+			compatible = "airoha,en7581-snand";
+			reg = <0x00 0x1fa10000 0x00 0x140 0x00 0x1fa11000 0x00 0x600>;
+			status = "okay";
+
+			nand@0 {
+				compatible = "spi-nand";
+				reg = <0x00>;
+				spi-max-frequency = <0x2faf080>;
+				spi-rx-bus-width = <0x02>;
+				spi-tx-bus-width = <0x01>;
+
+				partitions {
+					#address-cells = <0x01>;
+					#size-cells = <0x01>;
+					compatible = "fixed-partitions";
+
+					partition@0 {
+						label = "bl2";
+						reg = <0x00 0x20000>;
+					};
+
+					partition@20000 {
+						label = "ubi";
+						reg = <0x20000 0xffe0000>;
+					};
+				};
+			};
+		};
+
+		switch@1fb58000 {
+			compatible = "airoha,an7583-switch";
+			reg = <0x00 0x1fb58000 0x00 0x8000>;
+
+			mdio {
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+			};
+		};
+
+		syscon@1fa20000 {
+			compatible = "airoha,en7581-chip-scu\0syscon";
+			reg = <0x00 0x1fa20000 0x00 0x388>;
+		};
+
+		syscon@1fbe3400 {
+			compatible = "airoha,en7581-pbus-csr\0syscon";
+			reg = <0x00 0x1fbe3400 0x00 0xff>;
+		};
+
+		system-controller@1fb00000 {
+			compatible = "syscon\0simple-mfd";
+			reg = <0x00 0x1fb00000 0x00 0x970>;
+
+			mdio-bus@c8 {
+				clocks = <0x05 0x09>;
+				compatible = "airoha,an7583-mdio";
+				reg = <0xc8>;
+				resets = <0x05 0x17>;
+			};
+
+			mdio-bus@cc {
+				clocks = <0x05 0x0a>;
+				compatible = "airoha,an7583-mdio";
+				reg = <0xcc>;
+				resets = <0x05 0x18>;
+			};
+
+			scuclk {
+				#clock-cells = <0x01>;
+				#reset-cells = <0x01>;
+				compatible = "airoha,an7583-scu";
+				phandle = <0x05>;
+			};
+		};
+
+		system-controller@1fbf0200 {
+			compatible = "syscon\0simple-mfd";
+			reg = <0x00 0x1fbf0200 0x00 0xc0>;
+
+			pinctrl {
+				#gpio-cells = <0x02>;
+				#interrupt-cells = <0x02>;
+				compatible = "airoha,an7583-pinctrl";
+				gpio-controller;
+				interrupt-controller;
+				interrupt-parent = <0x01>;
+				interrupts = <0x00 0x1a 0x04>;
+				phandle = <0x0e>;
+			};
+		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupt-parent = <0x01>;
+		interrupts = <0x01 0x0d 0x08 0x01 0x0e 0x08 0x01 0x0b 0x08 0x01 0x0a 0x08>;
+	};
+};

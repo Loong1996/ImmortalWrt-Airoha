@@ -373,7 +373,7 @@ Release 会标成 **pre-release**，这是故意的（`master-airoha` 不在
 
 ### 阶段 5 · 全过之后
 
-- [ ] 提交 `golden/*.dts` 基准
+- [x] 提交 `golden/*.dts` 基准（2026-09-06，取自 rebase 到 `a6215104` 后 MD/MF 各一次实机验证过的编译）
 - [ ] `docs/branches.md` 里 `master-airoha` 的状态从 ⚠️ 改成 ✅
 - [ ] 考虑把 `master-airoha` 加进 CI 的 `IS_PRERELEASE=false` 白名单
       （`xg-040g-md-immortalwrt.yml` 里搜 `IS_PRERELEASE`）
@@ -434,7 +434,7 @@ function isMasterUbiAuto(rel){
 
 | 项 | 说明 |
 | --- | --- |
-| `golden/` 仍是空的 | 第 53 次编译已生成 3 个基准并作为 `drift-53` 产物上传，但基准该来自**实机验证过**的那次编译。阶段 4 已过，可以从验证过的那次编译取基准提交，待做 |
+| ~~`golden/` 仍是空的~~ | 2026-09-06 已提交 6 个基准（MD、MF 各 3 个），取自 rebase 到上游 `a6215104`（2026-09-04）后实机验证过的两次编译；`upstream.lock` 同步更新到该基线 |
 | ~~从未实机验证~~ | MD、MF 都已实机刷过，通过 |
 | ~~`refresh` 检查从未真跑过~~ | 第 53 次编译已实跑，调用方式（`clean` + 命令行 `QUILT=1`）正确，能产出 diff。当时报的 warning 是格式规范化误报，脚本已修 |
 | 每周漂移 workflow 没跑过 | 逻辑本地验过（能抓到 801~804 被搬走），但 issue 创建那段没在 GitHub 上跑过 |
