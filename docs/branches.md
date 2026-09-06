@@ -4,7 +4,7 @@
 
 | 分支 | 源码基线 | 设备定义 | 内核 | 配置文件 |
 | --- | --- | --- | --- | --- |
-| `master-airoha` | immortalwrt `master`，跟进上游 | 上游原生 `nokia_xg-040g-md-ubi` / `nokia_xg-040g-md`，本项目加 `nokia_xg-040g-mf-ubi` / `nokia_xg-040g-mf` | 6.18 | `config/xg-040g-md-master.config` / `config/xg-040g-mf-master.config` |
+| `master-airoha` | immortalwrt `master`，跟进上游 | 上游原生 `nokia_xg-040g-md-ubi` / `nokia_xg-040g-md` 与 `nokia_xg-040g-mf-ubi` / `nokia_xg-040g-mf`（MF 的设备定义 2026-08 已进上游） | 6.18 | `config/xg-040g-md-master.config` / `config/xg-040g-mf-master.config` |
 
 旧仓库 [ImmortalWrt-XG-040G-MD](https://github.com/Loong1996/ImmortalWrt-XG-040G-MD) 里的 `master-XG-040G-MD`（同一基线的零散提交版）、`openwrt-25.12-XG-040G-MD`（fzs209 的固定快照，内核 6.12）与 `tcboot` 变体都不再维护；`master-airoha` 是从 `master-XG-040G-MD` 整理出来的，整理过程见 [master-airoha 迁移说明](master-airoha-migration.md)。
 
@@ -13,7 +13,7 @@
 上游 master 已内核 6.18 且原生支持 XG-040G-MD，闪存、cpufreq、pcs-airoha 等补丁全部由上游承担。本项目在它之上叠的东西按主题分两组，每个提交都带 `Topic: common` / `Topic: nokia-xg-040g-md` 标记：
 
 * **U-Boot**（`package/boot/uboot-airoha/`）：Airoha Web U-Boot 网页救砖（`202`）、DRAM 容量探测（`206` / `310`）、复旦颗粒（`120` / `121`）、菜单环境刷新（`210`）、两款机型各自的 defconfig 与 defenv（`95x` / `96x`）
-* **内核与设备**：`luci-app-airoha-npu`（由本仓库 `packages/` 以 `src-link` feed 提供）、一行 `nf_conntrack_max`、XG-040G-MF 的 dts 与镜像定义、an7583 的散热配置
+* **内核与设备**：`luci-app-airoha-npu`（由本仓库 `packages/` 以 `src-link` feed 提供）、一行 `nf_conntrack_max`、an7583 的散热配置
 
 改动上游已有文件的只有这几个，也就是 rebase 会报冲突的全部范围：
 

@@ -53,6 +53,16 @@ on:
         required: false
         default: false
         type: boolean
+      prerelease:
+        description: '标记为 pre-release（客户定制或试验固件：照常发 Release 供下载，但不盖 Latest、不进教程的下载列表、不更新选包索引）'
+        required: false
+        default: false
+        type: boolean
+      release_label:
+        description: '发布标注（可选，写在 Release 标题末尾，如「客户 A 定制」）'
+        required: false
+        default: ''
+        type: string
 
 env:
   DRAM_SIZE: ${{ github.event.inputs.dram_size }}
@@ -246,9 +256,10 @@ jobs:
         echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
         echo "MODEL_TAG=$MODEL_TAG" >> $GITHUB_ENV
         echo "RELEASE_TAG=${MODEL_TAG}-${FLAVOR}-$DRAM_SIZE-$(date +"%Y%m%d")-${{ github.run_number }}" >> $GITHUB_ENV
-        # 测试分支照发 Release 方便下载，但标成 pre-release，不盖掉 GitHub Latest；
-        # 教程的下载列表也只认正式发布
-        if [ "$REPO_BRANCH" = "master-airoha" ]; then
+        # 测试分支与手动勾了 pre-release 的构建（客户定制、试验固件）照发 Release
+        # 方便下载，但标成 pre-release，不盖掉 GitHub Latest；教程的下载列表只认正式
+        # 发布，选包索引也只由正式发布更新
+        if [ "$REPO_BRANCH" = "master-airoha" ] && [ "${{ github.event.inputs.prerelease }}" != "true" ]; then
           echo "IS_PRERELEASE=false" >> $GITHUB_ENV
         else
           echo "IS_PRERELEASE=true" >> $GITHUB_ENV
@@ -717,7 +728,7 @@ jobs:
       if: steps.compile.outputs.status == 'success' && env.FIRMWARE_RELEASE == 'true'
       uses: ncipollo/release-action@v1
       with:
-        name: ${{ env.RELEASE_TAG }}
+        name: ${{ env.RELEASE_TAG }}${{ github.event.inputs.release_label && format(' · {0}', github.event.inputs.release_label) || '' }}
         tag: ${{ env.RELEASE_TAG }}
         token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: ${{ env.IS_PRERELEASE == 'true' }}
@@ -769,9 +780,10 @@ jobs:
           echo "::warning::未找到 $PI，跳过选包页更新"
           exit 0
         fi
-        # 测试分支不进选包页，免得在 gh-pages 上留下没人引用的索引文件
-        if [ "$REPO_BRANCH" != "master-airoha" ]; then
-          echo "::notice::$REPO_BRANCH 为测试分支，跳过选包页更新"; exit 0
+        # 测试分支与 pre-release 构建不进选包页：前者会在 gh-pages 上留下没人引用
+        # 的索引文件，后者的软件包组合是定制的，不该成为选包页的默认参照
+        if [ "$IS_PRERELEASE" = "true" ]; then
+          echo "::notice::pre-release 构建（分支 $REPO_BRANCH），跳过选包页更新"; exit 0
         fi
         PAGES="$RUNNER_TEMP/pages"
         mkdir -p "$PAGES"
