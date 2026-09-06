@@ -53,6 +53,22 @@ ret = air_buckpbus_reg_modify(phydev, EN8811H_GPIO_OUTPUT,
 
 > ℹ️ 修好之后 `dmesg` 里**仍然会有两三次 attach**，那是正常的。patch 解决的是「每次 attach 之后引脚方向都重新配上」，不是消除 attach。
 
+上游主线 2026-08-23 合入了同一个修复（[`03b4702f` net: phy: air_en8811h: move LED GPIO configuration to config_init](https://github.com/torvalds/linux/commit/03b4702fc5e311cbac9ba8654021a88f0dac914c)），做法与 805 相同，只是写在 `config_init` 末尾。等它进 6.18 stable 或 OpenWrt 的 backport 后，805 可以直接删掉。
+
+### 已知问题：启动过程中插网线，灯可能不亮
+
+805 解决的是确定性的那部分。还剩一个时序窗口：**上电后、系统起来前这段时间里插上 lan1 的网线**，灯有一定概率整次启动都不亮，同一份固件下一次启动又正常。原因是 link Up/Down 事件插进了三次 attach 之间，最后一次写引脚方向不一定排在最后一次 MCU 重启之后。上游那个修复同样没有覆盖这个窗口，所以先记着，等上游。
+
+| 情况 | 结果 |
+| --- | --- |
+| 网线插好再上电 | 每次都亮 |
+| 系统起来后再插 | 亮 |
+| 上电后、起系统前插 | 有概率不亮 |
+
+灭了之后**重新插拔网线救不回来**，链路变化不会重跑 `config_init`；`ifdown lan; ifup lan` 或重启即可。已经确认与固件版本、配置文件无关：2026-09-06 在 master-airoha 上复现，内核补丁、DTS、`01_leds` 与旧线逐字节相同。
+
+如果以后要自己堵这个窗口，方向是在驱动的 `.read_status` 里链路 Up 时再写一次 `EN8811H_GPIO_OUTPUT`，改动只影响 EN8811H 这颗 PHY（MD、MF、an7583 EVB 都用它），不碰数据面。
+
 ## 自定义
 
 LED 配置由 `01_leds` 生成到 `/etc/config/system`，**只在首次启动或恢复出厂设置时跑一次**。保留配置 sysupgrade 不会重新生成，改完直接 `uci` 就行。
