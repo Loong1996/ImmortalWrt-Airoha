@@ -2,7 +2,7 @@
 
 `ubi` 变体的 U-Boot 里内置了一个恢复页面 —— **Airoha Web U-Boot**。**机器刷坏了，插上网线用浏览器就能救回来** —— 不用串口，不用在电脑上架 TFTP 服务器，不用装任何工具。
 
-当前版本 **0.2.0**，在 `master-airoha` 线上维护，XG-040G-MD 与 XG-040G-MF 共用同一份页面。0.1.x 的开发历史归档在 `archive/master-XG-040G-MD-httpd`。
+当前版本 **0.3.0**，在 `master-airoha` 线上维护，XG-040G-MD 与 XG-040G-MF 共用同一份页面。0.1.x 的开发历史归档在 `archive/master-XG-040G-MD-httpd`。
 
 > 想要图文版、从零开始的操作教程（含实拍接线图与串口截图），见 **[网页救砖指南](https://loong1996.github.io/ImmortalWrt-Airoha/recovery-guide.html)**。本文档是技术参考，覆盖设计取舍与踩过的坑。
 
@@ -46,12 +46,26 @@
 | 引导升级 | `bl2` `fip` `firmware`（可选） `format` | BL2 走 `mtd`；FIP 在位写 `fip` 卷；勾了「重建 UBI」先整个擦掉 `ubi` 分区 |
 | 刷回原厂 | `stock` `stockoff` | 裸设备 `mtd erase` + `mtd write`，偏移由 `stockoff` 给，默认 `0x0` 整片 |
 | 创建 UBI 卷 | `fvol_<name>`… `ubivol` `ubifile` `stay` | 出厂数据卷按 `HTTPD_FACTORY_VOLS` 校验长度后 `ubi write`；任意卷 `ubi check \|\| ubi create` 再写；`stay` 写完不重启 |
-| 设备详情 | — | `GET /info` 返回 JSON：设备树 `model` / `compatible`、DRAM、MTD 几何与分区、MAC、U-Boot 版本、UBI 卷表。卷表按卷名排序，ID 列是 UBI 卷号（按创建先后分配，不同迁移路径得到的号不同）；卷没有固定物理地址，所以不列 |
+| 设备详情 | — | `GET /info` 返回 JSON：设备树 `model` / `compatible`、DRAM、MTD 几何与分区、MAC、U-Boot 版本、UBI 卷表（含有没有 `fip` 卷）。卷表按卷名排序，ID 列是 UBI 卷号（按创建先后分配，不同迁移路径得到的号不同）；卷没有固定物理地址，所以不列。同一页还有「健康检查」（`GET /check`）与「启动日志」（`GET /log`），见[下一节](#030拦截横幅体检日志) |
 | 关于 | — | 静态 |
 
 页面本身**不含任何机型串** —— 机型、闪存、卷表都是请求时读出来的，所以两款机器共用同一份 HTML，第三块板也是。
 
 上传结束设备回一行 `{"ok":1}`，页面自己切到「上传完成」；勾了「写入后不重启」就留在原页、把表单清空。能在上传前查出来的错误 —— 出厂卷长度不对、偏移没按擦除块对齐或超出容量、卷名非法 —— 设备直接回 400，原因显示在进度条下面，此时什么都还没写。
+
+### 0.3.0：拦截、横幅、体检、日志
+
+四样都是同一份用户日志引出来的：机器停在 BL2 报 `No volume named fip` —— BL2 写进去了，`fip` 卷没建。页面当时允许勾「重建 UBI」却只传 BL2，而写入失败只在串口上可见，没串口的用户看到的就是「刷完没反应」。
+
+**两道拦截。** 勾了「重建 UBI」却没选 U-Boot 文件，确认框里不出「仍要写入」；C 侧 `httpd_validate()` 同样拒收（400 `rebuilding UBI without a U-Boot FIP would leave nothing to boot`）—— 页面不是唯一的客户端。另外三条只在页面：闪存里的 UBI 没有 `fip` 卷时，引导升级必须带 U-Boot 文件；UBI 挂不上时，日常刷机与创建 UBI 卷直接拦，引导升级要么勾重建、要么只传 BL2。
+
+**顶部横幅。** `/info` 的 `ubi` 对象多了 `fip` 字段。页面加载后两种情况亮红条：`ubi` 为 `null`（首次迁移：三样一起传并勾重建）；有 UBI 但没 `fip` 卷（现在跑的 U-Boot 只在内存里，断电就没）。串口 xmodem 灌进来的 U-Boot 正是第二种。
+
+**健康检查（`GET /check`）。** 设备详情页一个按钮，C 侧顺序跑：闪存型号；扫全片坏块（`mtd_block_isbad`，落在 `bl2` 分区那块的算异常）；`bl2` 分区 `0x800` 处有没有 FIP 容器头 `0xaa640001` —— BL2 与 FIP 都是 fiptool 打的包，共用这个魔数，原厂与 tcboot 的引导也在同一位置放同一个头，所以它只回答「有没有东西可启动」，分不出是谁的；UBI 能否挂载、卷数、坏块、空闲 LEB；`fip` 卷整卷读一遍（静态卷，UBI 读时校 CRC）再看头；`fit` 卷读头 4 KiB 看 `0xd00dfeed`，并拿 `totalsize` 对卷内长度；`ubootenv` / `ubootenv2` 在不在（名字来自 `CONFIG_ENV_UBI_VOLUME*`）；`HTTPD_FACTORY_VOLS` 里的出厂卷在不在、长度对不对、是不是全 `ff` 的空卷；`HTTPD_FACTORY_MAC`（defconfig 里 `ri:0x3e`）指的出厂 MAC 是否有效、与当前是否一致；`ethaddr` 是否设置。每项绿 / 橙 / 红加一句人话，同一段也打到串口。读取落在 `$loadaddr`，上传进行中回 503。「复制诊断信息」把设备详情与检查结果拼成纯文本，群里求助贴这个。
+
+**启动日志（`GET /log`）。** 打开 U-Boot 自带的 `CONFIG_CONSOLE_RECORD`（64 KiB），把 `gd->console_out` 原样吐出来，页面去掉 ANSI 转义后显示，可复制。`203` 补上一处上游的遗漏：重定位后 `console_record_init()` 重新分配缓冲，重定位前录的横幅、CPU、DRAM 三行会丢，现在先搬过来。缓冲满了不覆盖、只丢新的，末尾标一句「日志缓冲已满」—— 64 KiB 对一次救砖绰绰有余。`/info` 多一个 `log` 字段，没开录制的固件页面不显示这一节。
+
+菜单标题与 `show_about` 跟着升到 0.3.0，`envver` 4 → 5。
 
 ### 面板灯是唯一的进度来源
 
@@ -140,8 +154,9 @@ BL2 走 `mtd`，完全不碰 UBI；FIP 走 `httpd_write_fip`，它自己只换 `
 
 | 补丁 | 做什么 |
 | --- | --- |
-| `202-net-add-httpd-recovery-server` | 全部的 httpd —— 新增 `net/httpd.c`，外加 `net.c` / `Kconfig` / `Makefile` / `net-legacy.h` 四处挂接；`Kconfig` 里三个选项：`CMD_HTTPD`、`HTTPD_FACTORY_VOLS`（出厂数据卷名与长度）、`CMD_HTTPD_STOCK_RESTORE`（按板启用裸写） |
-| `950-configs-xg-040g-md-enable-httpd` | MD defconfig：`PROT_TCP` / `CMD_HTTPD` / `CYCLIC`，`HTTPD_FACTORY_VOLS="ri:0x40000 bosa:0x40000"`，`CMD_HTTPD_STOCK_RESTORE=y` |
+| `202-net-add-httpd-recovery-server` | 全部的 httpd —— 新增 `net/httpd.c`，外加 `net.c` / `Kconfig` / `Makefile` / `net-legacy.h` 四处挂接；`Kconfig` 里四个选项：`CMD_HTTPD`、`HTTPD_FACTORY_VOLS`（出厂数据卷名与长度）、`HTTPD_FACTORY_MAC`（出厂 MAC 在哪个卷的哪个偏移）、`CMD_HTTPD_STOCK_RESTORE`（按板启用裸写） |
+| `203-console-record-keep-pre-relocation-output` | 重定位后保留重定位前的 console 录制内容，`GET /log` 才能从横幅看起 |
+| `950-configs-xg-040g-md-enable-httpd` | MD defconfig：`PROT_TCP` / `CMD_HTTPD` / `CYCLIC`，`HTTPD_FACTORY_VOLS="ri:0x40000 bosa:0x40000"`，`HTTPD_FACTORY_MAC="ri:0x3e"`，`CMD_HTTPD_STOCK_RESTORE=y`，`CONSOLE_RECORD` 64 KiB |
 | `951-defenvs-xg-040g-md-httpd-recovery` | MD 触发路径，与两条 httpd 专用的 env 脚本 |
 | `952-xg-040g-md-bootmenu-web-recovery-branding` | MD 引导菜单署名、手动开服务的菜单项、`envver` 自动刷新、`ethaddr` 两道闸 |
 | `954-xg-040g-md-httpd-fip-preserve-rootfs-data` | MD defenv 加 `httpd_write_fip`（网页更新引导器不清配置） |
@@ -414,7 +429,7 @@ tcboot 里嵌了 uIP 0.9（响应头 `Server: uIP/0.9`），因为它的基础 U
 
 按钮按下去先弹一个框：列出这次要传的文件名与大小，下面是这一页对应的提示 —— 会清 `rootfs_data`、会擦出厂 MAC、写完不重启要手动断电、整片写入之后本页面就没了。红色「仍要写入」才真的发。
 
-拦死（按钮不出现）的只有页面自己能判定的硬错误：没选文件、卷名非法或缺一半、偏移不是十六进制、没按擦除块对齐、超出容量。**文件名与常规命名不符只提醒不拦** —— 文件名是可以被改的，而 `.itb` 进了 BL2 格的后果（写到 flash `0x800`，BootROM 认不出，只能串口 xmodem）确实值得一句提醒。
+拦死（按钮不出现）的只有页面自己能判定的硬错误：没选文件、卷名非法或缺一半、偏移不是十六进制、没按擦除块对齐、超出容量；0.3.0 起还有勾了重建 UBI 却没选 U-Boot、闪存里没 `fip` 卷却没传 U-Boot、UBI 挂不上却要写卷（见[上面](#030拦截横幅体检日志)）。**文件名与常规命名不符只提醒不拦** —— 文件名是可以被改的，而 `.itb` 进了 BL2 格的后果（写到 flash `0x800`，BootROM 认不出，只能串口 xmodem）确实值得一句提醒。
 
 一页一个任务本身就消灭了原来一半的报错：「退回原厂不能和刷固件同时」「写入指定卷不能和其它写入同时」这类互斥不再需要说，因为表单结构上就做不到。
 
