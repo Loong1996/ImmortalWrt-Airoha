@@ -20,11 +20,11 @@ svg{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:2;stroke-lin
 .rail .id{padding:.3rem .5rem 1rem}
 .rail .id b{display:block;font-size:1rem}.rail .id small{color:var(--c2)}
 .rail .tag{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--c3);padding:.8rem .55rem .2rem;font-weight:600}
-.rail a.n{display:flex;align-items:center;gap:.5rem;padding:.32rem .55rem;border-radius:6px;color:var(--fg);font-size:.92rem}
-.rail a.n:hover{background:rgba(0,0,0,.05);text-decoration:none}
-@media (prefers-color-scheme:dark){.rail a.n:hover{background:rgba(255,255,255,.06)}}
-.rail a.n .ic{width:20px;height:20px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;color:#fff;flex:none}
-.rail a.n .ic svg{width:12px;height:12px}
+.rail .n{display:flex;align-items:center;gap:.5rem;padding:.32rem .55rem;border-radius:6px;color:var(--fg);font-size:.92rem}
+.rail .n:hover{background:rgba(0,0,0,.05);text-decoration:none}
+@media (prefers-color-scheme:dark){.rail .n:hover{background:rgba(255,255,255,.06)}}
+.rail .n .ic{width:20px;height:20px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;color:#fff;flex:none}
+.rail .n .ic svg{width:12px;height:12px}
 .rail .back{color:var(--c2);font-size:.85rem;padding:0 .55rem .4rem}
 main{padding:2rem 2.2rem 4rem;min-width:0}
 .hero h1{font-size:1.8rem;font-weight:700;letter-spacing:-.015em;margin:0 0 .3rem}
@@ -126,8 +126,7 @@ details.faq .a{color:var(--c2);margin-top:.5rem}
 .models td{white-space:nowrap}.models td:last-child{white-space:normal}
 .st{font-size:.8rem;padding:.1rem .55rem;border-radius:99px;background:rgba(120,120,128,.14);color:var(--c2)}
 .st.ok{color:#1f8a3b;background:rgba(52,199,89,.15)}.st.wip{color:#b8500f;background:rgba(255,159,10,.15)}
-.rail button.n{display:flex;align-items:center;gap:.5rem;padding:.32rem .55rem;border-radius:6px;color:var(--fg);font-size:.92rem;border:0;background:transparent;font:inherit;width:100%;text-align:left;cursor:pointer}
-.rail button.n:hover{background:rgba(0,0,0,.05)}
+.rail button.n{border:0;background:transparent;font:inherit;width:100%;text-align:left;cursor:pointer;line-height:inherit}
 .rail .ic.i7{background:#ff375f}.rail .ic.i8{background:#34c759}.rail .ic.i9{background:#0a84ff}
 .rmask{position:fixed;inset:0;background:rgba(0,0,0,.28);display:none;align-items:center;justify-content:center;padding:1rem;z-index:99}
 .rmask[data-on]{display:flex}
