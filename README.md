@@ -1,6 +1,6 @@
 # ImmortalWrt-Airoha
 
-ImmortalWrt firmware for Airoha-based ONTs：**Nokia XG-040G-MD**（AN7581）与 **XG-040G-MF**（AN7583）实机验证；同参考设计的 **XG-140G-MD**、**ZNXT ZN515XG-D** 经用户反馈可直接用 MD 固件。完整列表与状态见门户的[支持机型](https://loong1996.github.io/ImmortalWrt-Airoha/#models)。
+ImmortalWrt firmware for Airoha-based ONTs：**Nokia XG-040G-MD**（AN7581）与 **XG-040G-MF**（AN7583）实机验证；同参考设计的 **XG-140G-MD**、**ZNXT ZN515XG-D** 实测可直接用 MD 固件。完整列表与状态见门户的[支持机型](https://loong1996.github.io/ImmortalWrt-Airoha/#models)。
 
 🧰 [工具入口](https://loong1996.github.io/ImmortalWrt-Airoha/) · 选包 / 网页救砖教程 / 下载
 
