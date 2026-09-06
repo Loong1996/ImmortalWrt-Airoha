@@ -531,7 +531,9 @@ Handing out DHCP leases from 192.168.1.1</div>
       setTimeout(function(){try{STATES[f.getAttribute("data-state")](w,d)}catch(e){}fit(f)},30)});
     f.setAttribute("srcdoc",doc)});
   // 量一次不够：窗口缩放、手机横竖屏都会让里面重新折行，高度却停在第一次量到的值。
-  function fit(f){try{var d=f.contentDocument;if(!d||!d.documentElement)return;var h=d.documentElement.scrollHeight+2;if(h>200&&Math.abs(h-f.clientHeight)>2)f.style.height=h+"px"}catch(e){}}
+  // 量的是 .app 的实际高度而不是 documentElement.scrollHeight：后者永远不小于框本身，
+  // 内容比框矮的页（刷回原厂、关于）就缩不下去，下面留一大截空白。
+  function fit(f){try{var d=f.contentDocument;if(!d||!d.documentElement)return;var a=d.getElementById("app"),h=Math.ceil(a?a.getBoundingClientRect().height:d.documentElement.scrollHeight)+2;if(h>200&&Math.abs(h-f.clientHeight)>2)f.style.height=h+"px"}catch(e){}}
   var widths=[];
   function refit(f,i){var w=f.clientWidth;if(widths[i]===w)return;widths[i]=w;fit(f)}
   if(window.ResizeObserver){var ro=new ResizeObserver(function(es){es.forEach(function(e){refit(e.target,frames.indexOf(e.target))})});frames.forEach(function(f){ro.observe(f)})}
