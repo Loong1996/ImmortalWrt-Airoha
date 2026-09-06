@@ -528,6 +528,11 @@ Handing out DHCP leases from 192.168.1.1</div>
       var dark=matchMedia("(prefers-color-scheme:dark)").matches;d.documentElement.setAttribute("data-t",dark?"dark":"light");
       // 稿子里不真的提交
       var form=d.querySelector("form");if(form)form.onsubmit=function(){try{w.ask()}catch(e){}return false};
+      // 框里换页（点左栏、红条出现、进度条出现）内容高度就变了，得跟着重量：
+      // 盯着里面的 .app，它一变高就重新定高；没有 ResizeObserver 的浏览器退回到包一层 show()
+      var app=d.getElementById("app");
+      if(app&&window.ResizeObserver){new ResizeObserver(function(){fit(f)}).observe(app)}
+      else if(w.show){var show=w.show;w.show=function(id){show(id);fit(f)}}
       setTimeout(function(){try{STATES[f.getAttribute("data-state")](w,d)}catch(e){}fit(f)},30)});
     f.setAttribute("srcdoc",doc)});
   // 量一次不够：窗口缩放、手机横竖屏都会让里面重新折行，高度却停在第一次量到的值。
