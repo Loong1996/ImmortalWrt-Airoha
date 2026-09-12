@@ -70,7 +70,7 @@ usage() {
 
   -b, --branch <分支>     源码分支，默认 master-airoha（唯一维护的线）
   -v, --variant <变体>    设备变体 ubi|stock，默认 ubi
-  -D, --device <机型>     xg-040g-md|xg-040g-mf，默认 xg-040g-md
+  -D, --device <机型>     xg-040g-md|xg-040g-mf|zn504xg-d|zn515xg-d，默认 xg-040g-md
   -d, --dram <容量>       内存容量 auto|512M|1G|2G，默认 auto（自适应）
   -p, --packages <串>     附加软件包，格式同选包页：空格分隔，前缀 - 表示移除
   -j, --jobs <n>          并行度，默认按 CPU 与内存自动取较小值
@@ -86,6 +86,7 @@ usage() {
 示例:
   ./build.sh -v ubi -j 4
   ./build.sh -D xg-040g-mf
+  ./build.sh -D zn504xg-d -b add-zn50xg-d --no-update
   ./build.sh -p "luci-app-openclash ruby ruby-yaml"
 EOF
 }
@@ -163,14 +164,39 @@ fi
 # 与 workflow「生成变量」一步一致：机型决定子目标与配置文件，变体决定设备符号
 [ "$BRANCH" = "master-airoha" ] || warn "只维护 master-airoha，分支 $BRANCH 按同样的机型/变体规则处理"
 case "$DEVICE" in
-    xg-040g-md) DEVICE_SUBTARGET="an7581"; CONFIG_FILE="config/xg-040g-md-master.config" ;;
-    xg-040g-mf) DEVICE_SUBTARGET="an7583"; CONFIG_FILE="config/xg-040g-mf-master.config" ;;
-    *)          die "不支持的机型: $DEVICE（可选 xg-040g-md|xg-040g-mf）" ;;
-esac
-case "$VARIANT" in
-    stock)  DEVICE_SYMBOL="nokia_${DEVICE}" ;;
-    ubi)    DEVICE_SYMBOL="nokia_${DEVICE}-ubi" ;;
-    *)      die "不支持的变体: $VARIANT（可选 stock|ubi）" ;;
+    xg-040g-md)
+        DEVICE_SUBTARGET="an7581"
+        CONFIG_FILE="config/xg-040g-md-master.config"
+        case "$VARIANT" in
+            stock) DEVICE_SYMBOL="nokia_xg-040g-md" ;;
+            ubi)   DEVICE_SYMBOL="nokia_xg-040g-md-ubi" ;;
+            *)     die "不支持的变体: $VARIANT（可选 stock|ubi）" ;;
+        esac
+        ;;
+    xg-040g-mf)
+        DEVICE_SUBTARGET="an7583"
+        CONFIG_FILE="config/xg-040g-mf-master.config"
+        case "$VARIANT" in
+            stock) DEVICE_SYMBOL="nokia_xg-040g-mf" ;;
+            ubi)   DEVICE_SYMBOL="nokia_xg-040g-mf-ubi" ;;
+            *)     die "不支持的变体: $VARIANT（可选 stock|ubi）" ;;
+        esac
+        ;;
+    zn504xg-d)
+        DEVICE_SUBTARGET="an7581"
+        CONFIG_FILE="config/zn50xg-d-master.config"
+        DEVICE_SYMBOL="znxt_zn504xg-d"
+        [ "$VARIANT" = "ubi" ] || die "ZNXT ZN504XG-D 只有 ubi 布局（不要传 -v stock）"
+        ;;
+    zn515xg-d)
+        DEVICE_SUBTARGET="an7581"
+        CONFIG_FILE="config/zn50xg-d-master.config"
+        DEVICE_SYMBOL="znxt_zn515xg-d"
+        [ "$VARIANT" = "ubi" ] || die "ZNXT ZN515XG-D 只有 ubi 布局（不要传 -v stock）"
+        ;;
+    *)
+        die "不支持的机型: $DEVICE（可选 xg-040g-md|xg-040g-mf|zn504xg-d|zn515xg-d）"
+        ;;
 esac
 
 case "$DRAM_SIZE" in
@@ -276,8 +302,12 @@ fi
 # 512M / 1G / 2G 机器刷同一份固件。只有 stock 变体换过颗粒才需要写死。
 if [ "$DRAM_SIZE" != "auto" ]; then
     info "改写 DTS 内存容量为 $DRAM_SIZE"
-    DTS="$(grep -rl "linux,usable-memory-range" target/linux/airoha/dts/ 2>/dev/null | grep -i "xg-040g" | head -n1)"
-    [ -n "$DTS" ] || die "未找到含 usable-memory-range 的 XG-040G dts"
+    case "$DEVICE" in
+        zn504xg-d|zn515xg-d) DTS_FILTER="zn50xg-d" ;;
+        *)                   DTS_FILTER="xg-040g" ;;
+    esac
+    DTS="$(grep -rl "linux,usable-memory-range" target/linux/airoha/dts/ 2>/dev/null | grep -i "$DTS_FILTER" | head -n1)"
+    [ -n "$DTS" ] || die "未找到含 usable-memory-range 的机型 dts"
     case "$DRAM_SIZE" in
         512M) MEM_SIZE=0x20000000 ;;
         1G)   MEM_SIZE=0x40000000 ;;
@@ -454,7 +484,7 @@ echo
 case "$DEVICE_SYMBOL" in
     nokia_xg-040g-md)
         echo "刷机用: factory-kernel.bin + factory-rootfs.bin" ;;
-    nokia_xg-040g-md-ubi|nokia_xg-040g-mf-ubi)
+    nokia_xg-040g-md-ubi|nokia_xg-040g-mf-ubi|znxt_zn504xg-d|znxt_zn515xg-d)
         echo "刷机用: preloader.bin + bl31-uboot.fip（USB-TTL 刷入）、*-recovery.itb 救援镜像" ;;
     nokia_xg-040g-mf)
         echo "刷机用: factory-kernel.bin + factory-rootfs.bin" ;;
