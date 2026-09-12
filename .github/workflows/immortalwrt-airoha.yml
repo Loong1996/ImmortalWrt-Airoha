@@ -2,7 +2,7 @@ name: ImmortalWrt-Airoha
 
 # 让 Actions 列表直接显示本次选了什么，省得点进去翻日志里的 env 块。
 # 必须写成一行：折叠标量会把缩进更深的续行当字面量，在 ${{ }} 中间插进换行。
-run-name: "${{ inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}"
+run-name: "${{ inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || inputs.device == 'zn504xg-d' && 'ZN504XG-D' || inputs.device == 'zn515xg-d' && 'ZN515XG-D' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}"
 
 on:
   workflow_dispatch:
@@ -20,6 +20,8 @@ on:
         options:
           - xg-040g-md
           - xg-040g-mf
+          - zn504xg-d
+          - zn515xg-d
       device_variant:
         description: '设备变体（ubi 推荐：作者魔改 U-Boot，带网页救砖；stock 保留原厂引导）'
         required: true
@@ -154,8 +156,12 @@ jobs:
         # 放到 2G，这里是等值改写；上游那边仍是 512M-2M，哪天同步
         # 覆盖回去，auto 出来的固件也不会突然只认一半内存。memory 节点不动，
         # 留给 U-Boot 的 fixup 去填。
-        DTS=$(grep -rl "linux,usable-memory-range" target/linux/airoha/dts/ 2>/dev/null | grep -i "xg-040g" | head -n1)
-        [ -n "$DTS" ] || { echo "::error::未找到含 usable-memory-range 的 XG-040G dts"; exit 1; }
+        case "$DEVICE" in
+          zn504xg-d|zn515xg-d) DTS_FILTER="zn50xg-d" ;;
+          *)                   DTS_FILTER="xg-040g" ;;
+        esac
+        DTS=$(grep -rl "linux,usable-memory-range" target/linux/airoha/dts/ 2>/dev/null | grep -i "$DTS_FILTER" | head -n1)
+        [ -n "$DTS" ] || { echo "::error::未找到含 usable-memory-range 的机型 dts"; exit 1; }
         echo "目标文件: $DTS"
 
         case "$DRAM_SIZE" in
@@ -206,12 +212,30 @@ jobs:
             MODEL_TAG=XG-040G-MD
             CONFIG_FILE=config/xg-040g-md-master.config
             ;;
+          zn504xg-d)
+            DEVICE_SUBTARGET=an7581
+            MODEL_TAG=ZN504XG-D
+            CONFIG_FILE=config/zn50xg-d-master.config
+            ;;
+          zn515xg-d)
+            DEVICE_SUBTARGET=an7581
+            MODEL_TAG=ZN515XG-D
+            CONFIG_FILE=config/zn50xg-d-master.config
+            ;;
           *) echo "::error::不支持的 device=$DEVICE"; exit 1 ;;
         esac
-        case "$DEVICE_VARIANT" in
-          stock)  DEVICE_SYMBOL=nokia_${DEVICE} ;;
-          ubi)    DEVICE_SYMBOL=nokia_${DEVICE}-ubi ;;
-          *)      echo "::error::不支持的 device_variant=$DEVICE_VARIANT"; exit 1 ;;
+        case "$DEVICE" in
+          zn504xg-d|zn515xg-d)
+            [ "$DEVICE_VARIANT" = "ubi" ] || { echo "::error::ZNXT 只有 ubi 布局（不要选 stock）"; exit 1; }
+            DEVICE_SYMBOL=znxt_${DEVICE}
+            ;;
+          *)
+            case "$DEVICE_VARIANT" in
+              stock)  DEVICE_SYMBOL=nokia_${DEVICE} ;;
+              ubi)    DEVICE_SYMBOL=nokia_${DEVICE}-ubi ;;
+              *)      echo "::error::不支持的 device_variant=$DEVICE_VARIANT"; exit 1 ;;
+            esac
+            ;;
         esac
         FLAVOR="$DEVICE_VARIANT"
         VARIANT_LABEL="$DEVICE_VARIANT"
@@ -247,6 +271,13 @@ jobs:
               echo "- 附件 \`*-recovery.itb\` 为 initramfs 救援镜像"
               echo "- MAC 取自 ubi 中的 \`ri\` 卷，原厂 \`bosa\` 亦需转存为同名卷"
               echo "- 自带网页救砖（Airoha Web U-Boot），按住 reset 上电、引导失败或引导菜单第 9 项进入"
+              ;;
+            znxt_zn504xg-d|znxt_zn515xg-d)
+              echo "- OpenWrt U-Boot 布局：bl2 128K + ubi（ESMT F50L2G41XA 256 MiB）"
+              echo "- **会替换引导程序**，附件 \`preloader.bin\` 与 \`bl31-uboot.fip\` 需经 USB-TTL 刷入"
+              echo "- 附件 \`*-recovery.itb\` 为 initramfs 救援镜像"
+              echo "- 自带网页救砖（Airoha Web U-Boot），按住 reset 上电、引导失败或引导菜单第 9 项进入"
+              echo "- 首版 DTS 只开了 gdm1 / 电源灯，网口灯、USB、2.5G PHY、WiFi 尚未描述"
               ;;
           esac
           echo LAYOUTEOF
