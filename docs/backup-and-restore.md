@@ -219,7 +219,7 @@ dd if=/dev/mtd7 bs=128k | nc 192.168.1.100 5555
 
 ## 二、引导程序：tcboot.bin 与 bootext.ram
 
-两个文件均由 [Nwrt](https://nwrt.kuroneko.host/flashdocs/XG-040G-MD.html) 提供（下载地址见 [README](../README.md#项目说明)），不随本仓库分发。
+两个文件均由 [Nwrt](https://nwrt.kuroneko.host/flashdocs/XG-040G-MD.html) 提供（下载地址见 [README](../README.md#刷机之前)），不随本仓库分发。
 
 ### tcboot.bin（512 KiB）
 
