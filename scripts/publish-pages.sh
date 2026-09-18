@@ -26,6 +26,8 @@ need "$GITHUB_WORKSPACE/portal/index.html"
 need "$GITHUB_WORKSPACE/portal/hardware-mod.html"
 need "$GITHUB_WORKSPACE/selector/index.html"
 need "$GITHUB_WORKSPACE/guide/recovery-guide.html"
+need "$GITHUB_WORKSPACE/guide/img/board-serial.jpg"
+need "$GITHUB_WORKSPACE/guide/img/reward.jpg"
 
 GH="$RUNNER_TEMP/gh"
 REMOTE="https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git"
@@ -45,6 +47,9 @@ stage() {
   cp "$GITHUB_WORKSPACE/portal/hardware-mod.html" "$GH/hardware-mod.html"
   cp "$GITHUB_WORKSPACE/selector/index.html" "$GH/packages.html"
   cp "$GITHUB_WORKSPACE/guide/recovery-guide.html" "$GH/recovery-guide.html"
+  # 教程与门户的图片都按相对路径 img/ 引用，统一放到站点根下
+  mkdir -p "$GH/img"
+  cp "$GITHUB_WORKSPACE"/guide/img/* "$GH/img/"
   # 旧版存档：recovery-guide_<版本>.html 一律带上，由新版教程里的「旧版」
   # 卡片链过去。文件名进 URL，改名会断链。
   cp "$GITHUB_WORKSPACE"/guide/recovery-guide_*.html "$GH/"
