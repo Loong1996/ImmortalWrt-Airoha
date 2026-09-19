@@ -21,6 +21,13 @@ fi
 PAGES=$1
 MSG=$2
 
+# gh-pages 是线上站点，只由 main 上的 workflow 发布。从别的分支触发时
+# （比如带着新版教程的开发分支）那一份网页还没进主线，不能盖到线上去。
+if [ -n "${GITHUB_REF_NAME:-}" ] && [ "$GITHUB_REF_NAME" != "main" ]; then
+  echo "::notice::workflow 在 $GITHUB_REF_NAME 分支上运行，只有 main 发布 gh-pages，跳过"
+  exit 0
+fi
+
 need() { [ -e "$1" ] || { echo "::error::缺少 $1"; exit 1; }; }
 need "$GITHUB_WORKSPACE/portal/index.html"
 need "$GITHUB_WORKSPACE/portal/hardware-mod.html"

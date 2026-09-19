@@ -303,7 +303,9 @@ jobs:
         # 测试分支与手动勾了 pre-release 的构建（客户定制、试验固件）照发 Release
         # 方便下载，但标成 pre-release，不盖掉 GitHub Latest；教程的下载列表只认正式
         # 发布，选包索引也只由正式发布更新
-        if [ "$REPO_BRANCH" = "master-airoha" ] && [ "${{ github.event.inputs.prerelease }}" != "true" ]; then
+        # workflow 本身也得是 main 上的那份：从开发分支触发时，Release 说明、
+        # 配置文件都还没进主线，不能盖掉 Latest
+        if [ "$REPO_BRANCH" = "master-airoha" ] && [ "${{ github.ref_name }}" = "main" ] && [ "${{ github.event.inputs.prerelease }}" != "true" ]; then
           echo "IS_PRERELEASE=false" >> $GITHUB_ENV
         else
           echo "IS_PRERELEASE=true" >> $GITHUB_ENV
