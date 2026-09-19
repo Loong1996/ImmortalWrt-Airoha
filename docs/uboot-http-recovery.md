@@ -66,7 +66,7 @@
 
 上传结束设备回一行 `{"ok":1}`，那只是「收下了」；写入随后开始，页面靠 `GET /wr?from=` 跟着看，写完弹框问要不要重启（见[写入分步进行](#写入分步进行回读校验之后由页面决定重启)）。能在上传前查出来的错误 —— 出厂卷长度不对、偏移没按擦除块对齐或超出容量、卷名非法 —— 设备直接回 400，原因显示在进度条下面，此时什么都还没写。
 
-### 0.4.0：流水灯由板子声明、TF 的签名 BL2、ZN504 的 fip 保护
+### 0.4.0：流水灯由板子声明、TF 的安全启动证书、ZN504 的 fip 保护
 
 **流水灯由板子声明。** 0.3.0 的流水列表写死在 `net/httpd.c` 里：`green:power`、`green:wan`、`green:wan-online`、`green:usb-1`、`green:usb-2`，按标签找，找不到的跳过。三个问题都出在「按名字猜」上：ZN504XG-D 的灯是蓝色的，一盏都找不到；MF 的上网灯叫 `green:online`，从来不在流水里；找不到的灯仍占一拍，那一拍全黑。现在由板子在 U-Boot 设备树里用 phandle 列出，放在与 `boot-led` 同一个节点：
 
@@ -87,7 +87,9 @@ options {
 
 **文案。** 「引导升级」页的备份提示和「备份下载」页不再点名 `ri` / `bosa`：出厂卷由 `CONFIG_HTTPD_FACTORY_VOLS` 决定，ZN504 这类机型没有它们。
 
-**XG-040G-TF 的签名 BL2。** TF 的芯片 efuse 烧了根密钥，BootROM 只运行带 Trusted Boot FW Certificate 的 BL2。它只校验 BL2：证书里的公钥与 efuse 中的哈希比对、验签、再核对扩展 `1.3.6.1.4.1.4128.2100.201` 里 BL2 的 SHA-512；之后校不校验 BL31 / U-Boot 由 BL2 决定。我们的 BL2 不开 `TRUSTED_BOARD_BOOT`，所以只需给 BL2 配一张证书，FIP 和 MD 完全相同。efuse 里是 SDK 默认根密钥：第三方引导 tcboot 的证书公钥就是 atf-airoha 自带的 `plat/ecnt/key/rot_key_4096.pem`。证书由 `arm-trusted-firmware-airoha/scripts/airoha_sign_tb_fw.py` 在安装 BL2 时生成（只用 Python 标准库，格式与 TF-A `cert_create --tb-fw-cert` 一致：RSA-PSS / SHA-512，盐长 32），镜像配方 `an7581-preloader-signed` 用 `fiptool --tb-fw-cert` 打进 preloader。只有 TF 用它，其他机型的 preloader 不变。
+**写入进度慢一拍。** 每一步先在 `/wr` 宣布（`s 重建 UBI` 之类），过一轮 tick 再执行，好让页面在设备不再应答之前知道它在做什么。可一轮 tick 只有 120 ms，页面 700 ms 才轮询一次：长的步骤常常在页面听到之前就开始了，整段时间里页面显示的是上一步。最明显的是首刷重建 UBI —— 串口在擦整片 `ubi` 分区，网页却一直是「写入 BL2」。现在宣布之后，下一步要等某次 `/wr` 应答把这一行带出去，再留 250 ms 让它到达浏览器；页面关掉了也最多等 1.5 秒。
+
+**XG-040G-TF 的安全启动证书。** TF 的芯片 efuse 烧了根密钥，两级都要证书：BootROM 只运行带 Trusted Boot FW Certificate 的 BL2（证书里的公钥与 efuse 中的哈希比对、验签、再核对扩展 `1.3.6.1.4.1.4128.2100.201` 里 BL2 的 SHA-512）；BL2 加载 BL31 与 U-Boot 前还要走完 TBBR 证书链。atf-airoha 默认开着 `TRUSTED_BOARD_BOOT`，没烧密钥的芯片由闭源部分在运行时关掉认证，所以 MD 等机型不查；TF 上 FIP 里少了证书，BL2 就报 `ERROR: BL2: Failed to load image id 3 (-2)`（找不到 BL31 的内容证书）。efuse 里是 SDK 默认根密钥：第三方引导 tcboot 的各级证书公钥都是 atf-airoha 自带的 `plat/ecnt/key/rot_key_4096.pem`。证书由 `arm-trusted-firmware-airoha/scripts/airoha_tbbr_cert.py` 生成（只用 Python 标准库，格式与 TF-A `cert_create` 一致：RSA-PSS / SHA-512，盐长 32，ASN.1 结构与 tcboot 里的原厂证书逐项相同）：`tb-fw` 在安装 BL2 时生成 BL2 的证书，配方 `an7581-preloader-signed` 打进 preloader；`fip` 生成 Trusted Key、SoC/NT FW Key、SoC/NT FW Content 五张，全部用根密钥签，配方 `an7581-bl31-uboot-signed` 打进 FIP。只有 TF 用这两个配方，其他机型的引导文件不变。
 
 **ZN504XG-D 的 fip 保护。** ZN504 的原厂系统本身就是整片 UBI，从内存起来的 U-Boot 能挂上它，`_init_env` 会在用户备份之前往原厂 UBI 里建 env 卷，卷建不出来还会 `ubi_format` 整片擦除。它的 `_firstboot` 挂上 UBI 后先查 `fip` 卷，没有就当作不是自己的，像 `web_uboot_no_ubi` 一样不写任何东西，直接进网页救砖。
 

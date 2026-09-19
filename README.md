@@ -19,7 +19,7 @@
 | Nokia XG-040G-MD | AN7581 | `XG-040G-MD` | 实机验证 |
 | Nokia XG-040G-MF | AN7583 | `XG-040G-MF` | 实机验证 |
 | Nokia XG-140G-MD | AN7581 | `XG-040G-MD` | 实测可用 |
-| Nokia XG-040G-TF | AN7581 | `XG-040G-TF` | 待实机验证（芯片有安全启动，不能用 MD 的引导文件） |
+| Nokia XG-040G-TF | AN7581 | `XG-040G-TF` | 待实机验证（芯片有安全启动，BL2 与 U-Boot 都带证书，不能用 MD 的引导文件；已能进网页 U-Boot） |
 | ZNXT ZN515XG-D | AN7581 | `XG-040G-MD` | 实测可用 |
 
 其他 AN7581 参考设计的机器大概率也能直接用 MD 固件，试过的请到 Issues 或 QQ 群反馈。
