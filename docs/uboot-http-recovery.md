@@ -2,7 +2,7 @@
 
 `ubi` 变体的 U-Boot 里内置了一个恢复页面 —— **Airoha Web U-Boot**。**机器刷坏了，插上网线用浏览器就能救回来** —— 不用串口，不用在电脑上架 TFTP 服务器，不用装任何工具。
 
-当前版本 **0.3.0**，在 `master-airoha` 线上维护，XG-040G-MD 与 XG-040G-MF 共用同一份页面。0.1.x 的开发历史归档在 `archive/master-XG-040G-MD-httpd`。
+当前版本 **0.4.0**，在 `master-airoha` 线上维护，XG-040G-MD、XG-040G-MF、XG-040G-TF 与 ZN504XG-D 共用同一份页面。0.1.x 的开发历史归档在 `archive/master-XG-040G-MD-httpd`。
 
 > 想要图文版、从零开始的操作教程（含实拍接线图与串口截图），见 **[网页救砖指南](https://loong1996.github.io/ImmortalWrt-Airoha/recovery-guide.html)**。本文档是技术参考，覆盖设计取舍与踩过的坑。
 
@@ -18,7 +18,7 @@
 
 | 什么时候 | 怎么进 |
 | --- | --- |
-| 想主动刷机 | **按住 reset 上电**，一直按着，等面板五个绿灯开始**流水**再松手（约 15 秒） |
+| 想主动刷机 | **按住 reset 上电**，一直按着，等面板灯开始**流水**再松手（约 15 秒） |
 | 机器起不来了 | **什么都不用做** —— 从 NAND 引导失败后会自己循环起网页，插上网线即可 |
 | 闪存还是原厂布局 | **什么都不用做** —— `_firstboot` 里 `ubi part ubi` 挂不上就走 `web_uboot_no_ubi`，不动闪存直接起网页 |
 | 手上接着串口 | 引导菜单上用 ↑/↓ **选到第 9 项** 回车 —— `bootmenu_8` 直接 `httpd`，不经 `_firstboot`，不用掐 reset 的时机 |
@@ -65,6 +65,33 @@
 它只管**要先整个进内存才写**的那几页（引导升级、日常刷机、按卷写入、试跑固件），那些文件本来就只有几兆到十几兆。「刷回原厂」不受它管 —— 见下面的 `POST /stock`。
 
 上传结束设备回一行 `{"ok":1}`，那只是「收下了」；写入随后开始，页面靠 `GET /wr?from=` 跟着看，写完弹框问要不要重启（见[写入分步进行](#写入分步进行回读校验之后由页面决定重启)）。能在上传前查出来的错误 —— 出厂卷长度不对、偏移没按擦除块对齐或超出容量、卷名非法 —— 设备直接回 400，原因显示在进度条下面，此时什么都还没写。
+
+### 0.4.0：流水灯由板子声明、TF 的签名 BL2、ZN504 的 fip 保护
+
+**流水灯由板子声明。** 0.3.0 的流水列表写死在 `net/httpd.c` 里：`green:power`、`green:wan`、`green:wan-online`、`green:usb-1`、`green:usb-2`，按标签找，找不到的跳过。三个问题都出在「按名字猜」上：ZN504XG-D 的灯是蓝色的，一盏都找不到；MF 的上网灯叫 `green:online`，从来不在流水里；找不到的灯仍占一拍，那一拍全黑。现在由板子在 U-Boot 设备树里用 phandle 列出，放在与 `boot-led` 同一个节点：
+
+```dts
+options {
+	u-boot {
+		compatible = "u-boot,config";
+		httpd-chase-leds = <&led_power &led_wan &led_wan_online>;
+	};
+};
+```
+
+按列出的顺序流水，与名字、颜色无关；列表里找不到的灯直接去掉，不留黑帧。属性名不带厂商前缀，照 `boot-led` 的写法，名字里的 `httpd-chase` 说明它只管网页救砖的流水，不是网页 U-Boot 的全部 LED。MD、MF 在各自的 `950` / `960` 里声明，ZN504、TF 在各自的 U-Boot DTS 里。
+
+**没有回退。** 没声明的板子不流水，而不是退回去按名字猜 —— 两套机制并存，新板子忘了声明也不会有人发现。发现靠三处：`uboot-airoha` 的 Makefile 在 U-Boot 编完后查控制 dtb（`dts/dt.dtb`，DTS 放在哪都不影响），`CONFIG_CMD_HTTPD=y` 而里面没有 `httpd-chase-leds` 就编译失败；运行时串口打一行；「系统诊断 → 快速检查」最后一组「指示灯」列出参与流水的灯，未声明或有灯没找到时亮黄灯。
+
+**写入开始时两灯同亮。** 网络循环的 tick 点亮 `led_pos` 后把它挪到下一盏；写入期间的 cyclic 原来只熄 `led_pos`（那一盏还没亮），刚点亮的那盏就一直亮着，直到流水绕回来。现在 cyclic 直接画 tick 的同一帧。
+
+**文案。** 「引导升级」页的备份提示和「备份下载」页不再点名 `ri` / `bosa`：出厂卷由 `CONFIG_HTTPD_FACTORY_VOLS` 决定，ZN504 这类机型没有它们。
+
+**XG-040G-TF 的签名 BL2。** TF 的芯片 efuse 烧了根密钥，BootROM 只运行带 Trusted Boot FW Certificate 的 BL2。它只校验 BL2：证书里的公钥与 efuse 中的哈希比对、验签、再核对扩展 `1.3.6.1.4.1.4128.2100.201` 里 BL2 的 SHA-512；之后校不校验 BL31 / U-Boot 由 BL2 决定。我们的 BL2 不开 `TRUSTED_BOARD_BOOT`，所以只需给 BL2 配一张证书，FIP 和 MD 完全相同。efuse 里是 SDK 默认根密钥：第三方引导 tcboot 的证书公钥就是 atf-airoha 自带的 `plat/ecnt/key/rot_key_4096.pem`。证书由 `arm-trusted-firmware-airoha/scripts/airoha_sign_tb_fw.py` 在安装 BL2 时生成（只用 Python 标准库，格式与 TF-A `cert_create --tb-fw-cert` 一致：RSA-PSS / SHA-512，盐长 32），镜像配方 `an7581-preloader-signed` 用 `fiptool --tb-fw-cert` 打进 preloader。只有 TF 用它，其他机型的 preloader 不变。
+
+**ZN504XG-D 的 fip 保护。** ZN504 的原厂系统本身就是整片 UBI，从内存起来的 U-Boot 能挂上它，`_init_env` 会在用户备份之前往原厂 UBI 里建 env 卷，卷建不出来还会 `ubi_format` 整片擦除。它的 `_firstboot` 挂上 UBI 后先查 `fip` 卷，没有就当作不是自己的，像 `web_uboot_no_ubi` 一样不写任何东西，直接进网页救砖。
+
+`web_uboot_envver` 7 → 8，升级上来的机器第一次开机刷新菜单标题与 `web_uboot_show_about`。
 
 ### 0.3.0：拦截、横幅、体检、日志
 
@@ -477,10 +504,12 @@ printf("httpd: that image did not boot; the flash was not touched\n");
 
 | 面板 | 含义 | 能拔网线吗 |
 | --- | --- | --- |
-| 五灯**流水** | 设备在工作：等上传、正在写、正在回读校验 | 可以，写照样走完，只是看不到进度 |
+| 面板灯**流水** | 设备在工作：等上传、正在写、正在回读校验 | 可以，写照样走完，只是看不到进度 |
 | 熄灭后重启 | 你在页面上点了「立即重启」 | ✅ |
 
 0.3.0 之前是两种图形：流水＝网线还在用，齐闪＝上传结束、设备自己在写、网线随便拔。齐闪的含义整个建立在「连接已经关了」之上，而 A1 之后连接不关 —— 从第一个字节到那个重启框，页面一直连着。于是齐闪没有可说的话，删掉了，`httpd_blink()` 变成 `httpd_chase()`：写一个卷的那十秒是同步的，`httpd_tick()` 不跑，改由 cyclic 驱动同一条流水，图形不变。
+
+哪几盏灯参与流水、按什么顺序，由板子在 U-Boot 设备树的 `/options/u-boot` 里用 `httpd-chase-leds` 列出（见上面 [0.4.0](#040流水灯由板子声明tf-的签名-bl2zn504-的-fip-保护)），与灯的名字、颜色无关。
 
 **进度看页面，不看灯。** 灯只说「还在动」；写到哪一步、校验到百分之几，都在进度条上。
 
