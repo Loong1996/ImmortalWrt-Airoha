@@ -2,7 +2,7 @@ name: ImmortalWrt-Airoha
 
 # 让 Actions 列表直接显示本次选了什么，省得点进去翻日志里的 env 块。
 # 必须写成一行：折叠标量会把缩进更深的续行当字面量，在 ${{ }} 中间插进换行。
-run-name: "${{ inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || inputs.device == 'zn504xg-d' && 'ZN504XG-D' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}"
+run-name: "${{ inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || inputs.device == 'xg-040g-tf' && 'XG-040G-TF' || inputs.device == 'zn504xg-d' && 'ZN504XG-D' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}"
 
 on:
   workflow_dispatch:
@@ -20,6 +20,7 @@ on:
         options:
           - xg-040g-md
           - xg-040g-mf
+          - xg-040g-tf
           - zn504xg-d
       device_variant:
         description: '设备变体（ubi 推荐：作者魔改 U-Boot，带网页救砖；stock 保留原厂引导）'
@@ -211,6 +212,11 @@ jobs:
             MODEL_TAG=XG-040G-MD
             CONFIG_FILE=config/xg-040g-md-master.config
             ;;
+          xg-040g-tf)
+            DEVICE_SUBTARGET=an7581
+            MODEL_TAG=XG-040G-TF
+            CONFIG_FILE=config/xg-040g-tf-master.config
+            ;;
           zn504xg-d)
             DEVICE_SUBTARGET=an7581
             MODEL_TAG=ZN504XG-D
@@ -219,6 +225,10 @@ jobs:
           *) echo "::error::不支持的 device=$DEVICE"; exit 1 ;;
         esac
         case "$DEVICE" in
+          xg-040g-tf)
+            [ "$DEVICE_VARIANT" = "ubi" ] || { echo "::error::XG-040G-TF 只有 ubi 布局（不要选 stock）"; exit 1; }
+            DEVICE_SYMBOL=nokia_${DEVICE}-ubi
+            ;;
           zn504xg-d)
             [ "$DEVICE_VARIANT" = "ubi" ] || { echo "::error::ZNXT 只有 ubi 布局（不要选 stock）"; exit 1; }
             DEVICE_SYMBOL=znxt_${DEVICE}
@@ -262,6 +272,14 @@ jobs:
             nokia_xg-040g-md-ubi)
               echo "- OpenWrt U-Boot 布局：bl2 128K + ubi 255.875 MB"
               echo "- **会替换引导程序**，附件 \`preloader.bin\` 与 \`bl31-uboot.fip\` 需经 USB-TTL 刷入"
+              echo "- 附件 \`*-recovery.itb\` 为 initramfs 救援镜像"
+              echo "- MAC 取自 ubi 中的 \`ri\` 卷，原厂 \`bosa\` 亦需转存为同名卷"
+              echo "- 自带网页救砖（Airoha Web U-Boot），按住 reset 上电、引导失败或引导菜单第 9 项进入"
+              ;;
+            nokia_xg-040g-tf-ubi)
+              echo "- OpenWrt U-Boot 布局：bl2 128K + ubi 255.875 MB，硬件与 XG-040G-MD 相同"
+              echo "- **会替换引导程序**，附件 \`preloader.bin\` 与 \`bl31-uboot.fip\` 需经 USB-TTL 刷入"
+              echo "- 芯片 efuse 烧了根密钥，\`preloader.bin\` 带 BL2 签名证书，**不能与 MD 的混用**"
               echo "- 附件 \`*-recovery.itb\` 为 initramfs 救援镜像"
               echo "- MAC 取自 ubi 中的 \`ri\` 卷，原厂 \`bosa\` 亦需转存为同名卷"
               echo "- 自带网页救砖（Airoha Web U-Boot），按住 reset 上电、引导失败或引导菜单第 9 项进入"

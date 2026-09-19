@@ -70,7 +70,7 @@ usage() {
 
   -b, --branch <分支>     源码分支，默认 master-airoha（唯一维护的线）
   -v, --variant <变体>    设备变体 ubi|stock，默认 ubi
-  -D, --device <机型>     xg-040g-md|xg-040g-mf|zn504xg-d，默认 xg-040g-md
+  -D, --device <机型>     xg-040g-md|xg-040g-mf|xg-040g-tf|zn504xg-d，默认 xg-040g-md
   -d, --dram <容量>       内存容量 auto|512M|1G|2G，默认 auto（自适应）
   -p, --packages <串>     附加软件包，格式同选包页：空格分隔，前缀 - 表示移除
   -j, --jobs <n>          并行度，默认按 CPU 与内存自动取较小值
@@ -182,6 +182,12 @@ case "$DEVICE" in
             *)     die "不支持的变体: $VARIANT（可选 stock|ubi）" ;;
         esac
         ;;
+    xg-040g-tf)
+        DEVICE_SUBTARGET="an7581"
+        CONFIG_FILE="config/xg-040g-tf-master.config"
+        DEVICE_SYMBOL="nokia_xg-040g-tf-ubi"
+        [ "$VARIANT" = "ubi" ] || die "Nokia XG-040G-TF 只有 ubi 布局（不要传 -v stock）"
+        ;;
     zn504xg-d)
         DEVICE_SUBTARGET="an7581"
         CONFIG_FILE="config/zn504xg-d-master.config"
@@ -189,7 +195,7 @@ case "$DEVICE" in
         [ "$VARIANT" = "ubi" ] || die "ZNXT ZN504XG-D 只有 ubi 布局（不要传 -v stock）"
         ;;
     *)
-        die "不支持的机型: $DEVICE（可选 xg-040g-md|xg-040g-mf|zn504xg-d）"
+        die "不支持的机型: $DEVICE（可选 xg-040g-md|xg-040g-mf|xg-040g-tf|zn504xg-d）"
         ;;
 esac
 
@@ -478,7 +484,7 @@ echo
 case "$DEVICE_SYMBOL" in
     nokia_xg-040g-md)
         echo "刷机用: factory-kernel.bin + factory-rootfs.bin" ;;
-    nokia_xg-040g-md-ubi|nokia_xg-040g-mf-ubi|znxt_zn504xg-d)
+    nokia_xg-040g-md-ubi|nokia_xg-040g-mf-ubi|nokia_xg-040g-tf-ubi|znxt_zn504xg-d)
         echo "刷机用: preloader.bin + bl31-uboot.fip（USB-TTL 刷入）、*-recovery.itb 救援镜像" ;;
     nokia_xg-040g-mf)
         echo "刷机用: factory-kernel.bin + factory-rootfs.bin" ;;
