@@ -59,7 +59,10 @@
 
 1. Fork 本仓库，在 Actions 页面启用 workflow。
 2. `Actions → ImmortalWrt-Airoha → Run workflow`，选机型（`xg-040g-md` / `xg-040g-mf`）和变体。内存容量默认[自适应](docs/variants.md#内存容量)，不用管。
-3. 约 1~2 小时后，固件出现在本仓库的 Releases。
+3. 约 1~2 小时后出固件，去向由「发布方式」决定：
+   - `auto`（默认）：main 上编 `master-airoha` 发到本仓库的 Releases；别的分支只传 Artifact。
+   - `prerelease`：发 Release 但标 pre-release，不盖 Latest，也不进教程的下载列表。
+   - `artifact`：只传 Artifact，适合客户定制。在该次运行页面底部下载（需登录 GitHub），保留 30 天。
 
 有闲置的 Linux 机器，也可以本地一条命令 `./build.sh` 编，参数和 `Run workflow` 一一对应：见[本地编译](docs/local-build.md)。
 

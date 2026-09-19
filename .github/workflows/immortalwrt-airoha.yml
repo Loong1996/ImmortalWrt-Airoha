@@ -2,13 +2,13 @@ name: ImmortalWrt-Airoha
 
 # 让 Actions 列表直接显示本次选了什么，省得点进去翻日志里的 env 块。
 # 必须写成一行：折叠标量会把缩进更深的续行当字面量，在 ${{ }} 中间插进换行。
-run-name: "${{ inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || inputs.device == 'xg-040g-tf' && 'XG-040G-TF' || inputs.device == 'zn504xg-d' && 'ZN504XG-D' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}"
+run-name: "${{ inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || inputs.device == 'xg-040g-tf' && 'XG-040G-TF' || inputs.device == 'zn504xg-d' && 'ZN504XG-D' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}${{ inputs.release == 'prerelease' && ' · pre-release' || inputs.release == 'artifact' && ' · 不发布' || '' }}"
 
 on:
   workflow_dispatch:
     inputs:
       repo_branch:
-        description: '源码分支（Loong1996/immortalwrt）。留空即 master-airoha；填别的分支只作测试，会标成 pre-release、不更新选包索引'
+        description: '源码分支（Loong1996/immortalwrt）。留空即 master-airoha；填别的分支只作测试，默认只传 Artifact、不更新选包索引'
         required: false
         default: 'master-airoha'
         type: string
@@ -55,13 +55,17 @@ on:
         required: false
         default: false
         type: boolean
-      prerelease:
-        description: '标记为 pre-release（客户定制或试验固件：照常发 Release 供下载，但不盖 Latest、不进教程的下载列表、不更新选包索引）'
-        required: false
-        default: false
-        type: boolean
+      release:
+        description: '发布方式。auto：main 上编 master-airoha 发正式 Release，其余只传 Artifact；prerelease：发 Release 但标 pre-release（不盖 Latest、不进教程下载列表、不更新选包索引），非 main 分支想进 Release 选它；artifact：只传 Artifact（客户定制等），在本次运行页面下载，保留 30 天'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - prerelease
+          - artifact
       release_label:
-        description: '发布标注（可选，写在 Release 标题末尾，如「客户 A 定制」）'
+        description: '发布标注（可选，写在 Release 标题末尾，只传 Artifact 时写在运行摘要里，如「客户 A 定制」）'
         required: false
         default: ''
         type: string
@@ -81,7 +85,7 @@ env:
   CONFIG_FILE: config/xg-040g-md-master.config
   CACHE_TOOLCHAIN: true
   UPLOAD_BIN_DIR: false
-  FIRMWARE_RELEASE: true
+  RELEASE_MODE: ${{ github.event.inputs.release || 'auto' }}
   TZ: Asia/Shanghai
 
 jobs:
@@ -300,16 +304,26 @@ jobs:
         echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
         echo "MODEL_TAG=$MODEL_TAG" >> $GITHUB_ENV
         echo "RELEASE_TAG=${MODEL_TAG}-${FLAVOR}-$DRAM_SIZE-$(date +"%Y%m%d")-${{ github.run_number }}" >> $GITHUB_ENV
-        # 测试分支与手动勾了 pre-release 的构建（客户定制、试验固件）照发 Release
-        # 方便下载，但标成 pre-release，不盖掉 GitHub Latest；教程的下载列表只认正式
-        # 发布，选包索引也只由正式发布更新
+        # 正式发布只有一种：main 上的 workflow 编 master-airoha，发布方式选 auto。
+        # 它盖 Latest、进教程的下载列表、更新选包索引。
+        # 其余构建默认只传 Artifact：Release 列表按 tag 所指提交的日期排序，
+        # 开发分支的提交更新，发成 pre-release 也会顶到列表最前面。
+        # 确实要让别人下载时选 prerelease，发 Release 但不盖 Latest。
         # workflow 本身也得是 main 上的那份：从开发分支触发时，Release 说明、
-        # 配置文件都还没进主线，不能盖掉 Latest
-        if [ "$REPO_BRANCH" = "master-airoha" ] && [ "${{ github.ref_name }}" = "main" ] && [ "${{ github.event.inputs.prerelease }}" != "true" ]; then
-          echo "IS_PRERELEASE=false" >> $GITHUB_ENV
-        else
-          echo "IS_PRERELEASE=true" >> $GITHUB_ENV
-        fi
+        # 配置文件都还没进主线，不能盖掉 Latest。
+        OFFICIAL=false
+        [ "$REPO_BRANCH" = "master-airoha" ] && [ "${{ github.ref_name }}" = "main" ] && OFFICIAL=true
+        case "$RELEASE_MODE" in
+          auto)       PUBLISH_RELEASE=$OFFICIAL; IS_PRERELEASE=false ;;
+          prerelease) PUBLISH_RELEASE=true;      IS_PRERELEASE=true ;;
+          artifact)   PUBLISH_RELEASE=false;     IS_PRERELEASE=true ;;
+          *) echo "::error::不支持的 release=$RELEASE_MODE"; exit 1 ;;
+        esac
+        # 不发 Release 的构建也不算正式发布，选包页据此跳过
+        [ "$PUBLISH_RELEASE" = "true" ] || IS_PRERELEASE=true
+        echo "PUBLISH_RELEASE=$PUBLISH_RELEASE" >> $GITHUB_ENV
+        echo "IS_PRERELEASE=$IS_PRERELEASE" >> $GITHUB_ENV
+        echo "发布方式: $RELEASE_MODE → Release=$PUBLISH_RELEASE pre-release=$IS_PRERELEASE"
         # 自适应：只放开 usable 上限，memory 留给 U-Boot 探测后 fixup 进 DTB
         if [ "$DRAM_SIZE" = "auto" ]; then
           echo "DRAM_LABEL=自适应" >> $GITHUB_ENV
@@ -764,14 +778,27 @@ jobs:
         cat "$OUT"
 
     - name: Upload Firmware To Artifact(将固件上传到Artifact)
-      if: steps.compile.outputs.status == 'success' && env.FIRMWARE_RELEASE != 'true'
+      if: steps.compile.outputs.status == 'success' && env.PUBLISH_RELEASE != 'true'
       uses: actions/upload-artifact@main
       with:
-        name: ${{ env.SOURCE_REPO }}-firmware-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
+        name: ${{ env.RELEASE_TAG }}
         path: ${{ env.FIRMWARE_PATH }}
+        retention-days: 30
+
+    - name: Artifact Summary(下载说明)
+      if: steps.compile.outputs.status == 'success' && env.PUBLISH_RELEASE != 'true'
+      env:
+        RELEASE_LABEL: ${{ github.event.inputs.release_label }}
+      run: |
+        {
+          echo "### 📦 固件已上传为 Artifact，没有发 Release"
+          echo "- 名称：\`$RELEASE_TAG\`${RELEASE_LABEL:+（$RELEASE_LABEL）}"
+          echo "- 在本页底部 **Artifacts** 处下载（需登录 GitHub），下载得到 zip，解压即是固件"
+          echo "- 保留 30 天，过期自动删除"
+        } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Upload Firmware To Release(发布固件)
-      if: steps.compile.outputs.status == 'success' && env.FIRMWARE_RELEASE == 'true'
+      if: steps.compile.outputs.status == 'success' && env.PUBLISH_RELEASE == 'true'
       uses: ncipollo/release-action@v1
       with:
         name: ${{ env.RELEASE_TAG }}${{ github.event.inputs.release_label && format(' · {0}', github.event.inputs.release_label) || '' }}
@@ -826,10 +853,10 @@ jobs:
           echo "::warning::未找到 $PI，跳过选包页更新"
           exit 0
         fi
-        # 测试分支与 pre-release 构建不进选包页：前者会在 gh-pages 上留下没人引用
-        # 的索引文件，后者的软件包组合是定制的，不该成为选包页的默认参照
+        # 只有正式发布进选包页：测试分支会在 gh-pages 上留下没人引用的索引文件，
+        # pre-release 与只传 Artifact 的构建软件包组合是定制的，不该成为选包页的默认参照
         if [ "$IS_PRERELEASE" = "true" ]; then
-          echo "::notice::pre-release 构建（分支 $REPO_BRANCH），跳过选包页更新"; exit 0
+          echo "::notice::非正式发布（分支 $REPO_BRANCH，发布方式 $RELEASE_MODE），跳过选包页更新"; exit 0
         fi
         PAGES="$RUNNER_TEMP/pages"
         mkdir -p "$PAGES"
