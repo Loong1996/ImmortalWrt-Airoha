@@ -2,7 +2,7 @@ name: ImmortalWrt-Airoha
 
 # 让 Actions 列表直接显示本次选了什么，省得点进去翻日志里的 env 块。
 # 必须写成一行：折叠标量会把缩进更深的续行当字面量，在 ${{ }} 中间插进换行。
-run-name: "${{ inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || inputs.device == 'xg-040g-tf' && 'XG-040G-TF' || inputs.device == 'zn504xg-d' && 'ZN504XG-D' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}${{ inputs.release == 'prerelease' && ' · pre-release' || inputs.release == 'artifact' && ' · 不发布' || '' }}"
+run-name: "${{ inputs.device == 'all' && '全部机型' || inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || inputs.device == 'xg-040g-tf' && 'XG-040G-TF' || inputs.device == 'zn504xg-d' && 'ZN504XG-D' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}${{ inputs.release == 'prerelease' && ' · pre-release' || inputs.release == 'artifact' && ' · 不发布' || '' }}"
 
 on:
   workflow_dispatch:
@@ -13,11 +13,12 @@ on:
         default: 'master-airoha'
         type: string
       device:
-        description: '机型'
+        description: '机型（all：每个机型各起一个 job 并行编，stock 变体只编 MD 与 MF）'
         required: true
         default: 'xg-040g-md'
         type: choice
         options:
+          - all
           - xg-040g-md
           - xg-040g-mf
           - xg-040g-tf
@@ -78,7 +79,6 @@ env:
   REPO_URL: https://github.com/Loong1996/immortalwrt.git
   # 只维护 master-airoha 这一条线；输入留空时用它，填别的分支只作测试
   REPO_BRANCH: ${{ github.event.inputs.repo_branch || 'master-airoha' }}
-  DEVICE: ${{ github.event.inputs.device }}
   DEVICE_TARGET: airoha
   # 默认值；由 Generate Variables 按机型覆写（MF 是 an7583）
   DEVICE_SUBTARGET: an7581
@@ -90,7 +90,17 @@ env:
 
 jobs:
   Build:
+    name: ${{ matrix.device }}
     runs-on: ubuntu-latest
+    # 选 all 时每个机型一个 job 并行编；单选时矩阵里只有这一个机型。
+    # TF 与 ZN504 只有 ubi 布局，stock 下的 all 不带它们。
+    # 一个机型失败不取消其他机型。
+    strategy:
+      fail-fast: false
+      matrix:
+        device: ${{ fromJSON(inputs.device != 'all' && format('["{0}"]', inputs.device) || inputs.device_variant == 'stock' && '["xg-040g-md","xg-040g-mf"]' || '["xg-040g-md","xg-040g-mf","xg-040g-tf","zn504xg-d"]') }}
+    env:
+      DEVICE: ${{ matrix.device }}
     # 发布 Release 需要写权限；仅授予 contents，其余 scope 自动为 none
     # 需配合仓库设置 Settings → Actions → General → Workflow permissions
     # 选择 "Read and write permissions"，否则此声明会被仓库级只读设置压制
@@ -857,6 +867,10 @@ jobs:
         # pre-release 与只传 Artifact 的构建软件包组合是定制的，不该成为选包页的默认参照
         if [ "$IS_PRERELEASE" = "true" ]; then
           echo "::notice::非正式发布（分支 $REPO_BRANCH，发布方式 $RELEASE_MODE），跳过选包页更新"; exit 0
+        fi
+        # 索引按分支一份，不分机型。all 时几个 job 会互相覆盖，只让 MD 发布
+        if [ "${{ inputs.device }}" = "all" ] && [ "$DEVICE" != "xg-040g-md" ]; then
+          echo "::notice::all 构建由 xg-040g-md 更新选包页，$DEVICE 跳过"; exit 0
         fi
         PAGES="$RUNNER_TEMP/pages"
         mkdir -p "$PAGES"
