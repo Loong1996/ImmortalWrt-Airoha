@@ -675,7 +675,7 @@ jobs:
       continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
-        name: drift-${{ github.run_number }}
+        name: drift-${{ github.run_number }}-${{ matrix.device }}
         # golden/ 首次是脚本新写进去的基准，review 后提交进仓库
         path: |
           dtb.log
