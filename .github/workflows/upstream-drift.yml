@@ -27,10 +27,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout(检出本仓库)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Cache upstream mirror(缓存上游镜像)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .drift-cache
           # 缓存里是个 blob-less 的部分克隆，只存提交与树，几十兆。

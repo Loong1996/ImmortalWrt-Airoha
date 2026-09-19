@@ -46,7 +46,7 @@ jobs:
       contents: write
     steps:
     - name: Checkout
-      uses: actions/checkout@main
+      uses: actions/checkout@v7
 
     - name: Publish To Pages(只推网页)
       env:
@@ -66,7 +66,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@main
+      uses: actions/checkout@v7
 
     - name: Initialization Environment(初始化环境)
       env:
