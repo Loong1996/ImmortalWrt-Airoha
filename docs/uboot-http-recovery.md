@@ -730,6 +730,17 @@ tcboot 的 web 恢复界面（按住 reset 上电，`http://192.168.1.1/spinand.
 `ubi part ubi` 挂上来直接登记为空闲；UBI 的坏块预留是 attach 时从空闲池里自己划的，
 不需要镜像事先留。
 
+**首次开机串口会刷一屏 `UBI: Bad EC magic`。** 那是 tcboot 整片擦之后剩下的两千来个
+裸空块（没有 EC 头），BL2 全片扫时每个叫一声。**只有这一次**：U-Boot 挂上 UBI 时会把
+所有无头空块丢进 erase list，`ubi_wl_init` 挨个擦一遍并补上 EC 头，所以第二次开机就
+安静了。正常走首刷的机器不吵，也是同一个原因 —— `ubi_format` 里那句 `ubi part ubi`
+已经替它补过了。
+
+> 要连第一次都安静，只能把 `uboot-mediatek` 的
+> `100-26-mtd-ubi-add-support-for-UBI-end-of-filesystem-marker.patch` 移植进
+> `uboot-airoha`，让两边对标记的理解一致。没做：换来的只是一次开机的串口噪音，而这条路
+> 的意义就是不接串口；代价却是动所有机器都要走的引导路径。
+
 **不写 EOF 标记块（ubinize 的 `-E`）。** 那是让 BL2 提前结束扫描的优化，在这里是陷阱：
 UBI 改卷表是换一个 PEB 重写、再放掉旧的，所以首次启动跑完 `_init_env` 建出 `ubootenv`
 之后，卷表就搬到标记块后面去了。下次上电 BL2 扫到标记停手，卷表落在范围外，报
