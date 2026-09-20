@@ -641,7 +641,8 @@ printf("httpd: that image did not boot; the flash was not touched\n");
 
 ## 首次迁移：从 tcboot / 原厂 换到 ubi 布局
 
-只有这一次需要串口，之后再也不用。
+只有这一次需要串口，之后再也不用。**刷了第三方 tcboot 引导的机器连这一次都不用**，
+见下面的[从 tcboot 迁移不用串口](#从-tcboot-迁移不用串口)。
 
 **① 串口进 BootROM，xmodem 传两个文件**
 
@@ -705,6 +706,45 @@ web_uboot_no_ubi=echo ; echo "This flash carries no usable UBI. Leaving it alone
 BL2 走 `mtd`，完全不碰 UBI；FIP 走 `web_uboot_write_fip`，它自己只换 `fip` 那一个卷，连 `rootfs_data` 都不动（`954`，见下）。**只要 `ubi part ubi` 挂得上，就不要开重建。**
 
 覆盖正在运行的 U-Boot 是安全的：SPI-NAND 不能 XIP，当前这份早就解压在 DRAM 里跑了，和 flash 上的副本没关系。
+
+### 从 tcboot 迁移不用串口
+
+tcboot 的 web 恢复界面（按住 reset 上电，`http://192.168.1.1/spinand.html`）内部是
+`mtd erase spi-nand0` + `mtd write spi-nand0 <addr> 0x0 <len>` —— **写裸设备、按字节
+偏移、从物理 0 起**，绕开分区名。把 BL2 和一个含 `fip` 卷的 UBI 一起铺进去，机器
+重启就直接是本布局，一次串口都不用接。
+
+镜像结构（五个机型通用，几何一致：PEB 128 KiB、page 2048、`bl2` 0x0–0x20000）：
+
+| 偏移 | 内容 |
+| --- | --- |
+| `0x00000` | `0xff` × `0x800` —— BootROM 在 `0x800` 找 FIP 头 |
+| `0x00800` | `preloader.bin`，补 `0xff` 到 `0x20000` |
+| `0x20000` | UBI 镜像：PEB 0/1 卷表，之后 static 卷 `fip`，末尾 5 个 EOF 标记块 |
+
+**只写 BL2 是必砖**：BL2 按卷名去 UBI 里找 `fip`，而 tcboot 的 ubi 起点在 `0x100000`、
+本布局在 `0x20000`，挂不上就停在 `No volume named fip`，只能接串口。所以两样必须
+一次写完，而 tcboot 的 `/uboot` 端点只写 `bootloader` 分区、偏移还是 0，做不到。
+
+**闪存容量不影响。** 镜像只占开头 10 个 PEB，spinand 整片擦之后余下的块都是擦除态，
+`ubi part ubi` 挂上来直接登记为空闲；UBI 的坏块预留是 attach 时从空闲池里自己划的，
+不需要镜像事先留。5 个 EOF 标记让 BL2 扫到这儿就停，不必走完整片。
+
+**迁移之后按日常刷机走，不是首刷。** `_firstboot` 的两道闸都过得去（`ubi part ubi`
+挂得上、`ubi check fip` 找得到），于是 `_init_env` 建出 `ubootenv` / `ubootenv2`，
+落到网页。这时只传固件那一格即可，**不要勾「重建 UBI」** —— 重建是 `mtd erase ubi`，
+从 `0x20000` 开始擦，会把刚写进去的 `fip` 卷一起抹掉。`ubi_write_production` 里两个
+`ubi remove` 都被 `ubi check` 守着，`fit` 和 `rootfs_data` 还不存在也不会中断。
+
+镜像由两条路产出，内容一致：
+
+* **CI** —— `Pack Bootloader Kit` 步骤用 build tree 里带 `-E` 补丁的 ubinize 生成
+  `tcboot-to-ubi-uboot.bin`，随 Release 和 Artifact 一起发。发行版自带的 ubinize
+  没有 `-E`，不能拿来代替。同一步还打一个 `<RELEASE_TAG>-bootloader.zip`
+  （preloader + fip + `教程链接.txt`）。
+* **网页** —— `guide/migrate-image.html` 在浏览器里重跑一遍 ubinize（EC 头、VID 头、
+  卷表记录、CRC32 用 zlib 多项式但**末尾不取反**），给手里已有引导文件、或想用旧版本
+  的人用。文件不上传，全在本地算。
 
 ---
 

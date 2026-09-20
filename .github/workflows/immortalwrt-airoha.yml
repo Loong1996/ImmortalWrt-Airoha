@@ -813,6 +813,139 @@ jobs:
         echo "--- $OUT ---"
         cat "$OUT"
 
+    - name: Pack Bootloader Kit(打包引导程序套件)
+      if: steps.compile.outputs.status == 'success'
+      run: |
+        set -euo pipefail
+        cd "$FIRMWARE_PATH"
+
+        BL2=$(ls -1 *-preloader.bin 2>/dev/null | head -n1 || true)
+        FIP=$(ls -1 *-bl31-uboot.fip 2>/dev/null | head -n1 || true)
+        if [ -z "$BL2" ] || [ -z "$FIP" ]; then
+          echo "::notice::$VARIANT_LABEL 变体保留原厂引导，没有 preloader/fip，跳过本步"
+          exit 0
+        fi
+        echo "BL2=$BL2"
+        echo "FIP=$FIP"
+
+        # ---------------------------------------------------------------
+        # 一、tcboot-to-ubi-uboot.bin
+        #
+        # 给「已经刷了第三方 tcboot 引导」的机器用的不拆机迁移镜像：从物理
+        # 偏移 0 起的连续字节流，喂给 tcboot web 界面的 spinand 端点（内部是
+        # mtd erase spi-nand0 + mtd write spi-nand0 <addr> 0x0 <len>，写裸
+        # 设备、不过问分区名）。
+        #
+        #   0x00000  0xff × 0x800        BootROM 在 0x800 找 FIP 头
+        #   0x00800  preloader.bin       我们的 BL2
+        #   0x20000  UBI 镜像            含 static 卷 fip = bl31-uboot.fip
+        #
+        # 只写 BL2 是必砖：BL2 按卷名去 UBI 里找 fip，而 tcboot 的 ubi 起点
+        # 在 0x100000、我们的在 0x20000，挂不上就停在 No volume named fip。
+        # 几何取自镜像定义（BLOCKSIZE := 128k / PAGESIZE := 2048 / -E 5），
+        # 五个机型完全一致。
+        # ---------------------------------------------------------------
+        UBINIZE="$OPENWRT_PATH/staging_dir/host/bin/ubinize"
+        [ -x "$UBINIZE" ] || UBINIZE=$(command -v ubinize || true)
+        if [ -z "$UBINIZE" ]; then
+          echo "::error::找不到 ubinize（需要带 OpenWrt -E 补丁的那个）"
+          exit 1
+        fi
+
+        WORK=$(mktemp -d)
+        cat > "$WORK/fip.cfg" <<EOF
+        [fip]
+        mode=ubi
+        vol_id=0
+        vol_type=static
+        vol_name=fip
+        vol_size=1MiB
+        image=$PWD/$FIP
+        EOF
+        # -E 5 是 OpenWrt 给 ubinize 加的 EOF 标记块，发行版自带的 ubinize 没有
+        "$UBINIZE" -o "$WORK/ubi.img" -p 128KiB -m 2048 -E 5 \
+          ${SOURCE_DATE_EPOCH:+-Q $SOURCE_DATE_EPOCH} "$WORK/fip.cfg"
+
+        MIGRATE="tcboot-to-ubi-uboot.bin"
+        python3 - "$BL2" "$WORK/ubi.img" "$MIGRATE" <<'PY'
+        import sys
+        bl2_path, ubi_path, out_path = sys.argv[1:4]
+        BL2_PART, BL2_OFF = 0x20000, 0x800          # bl2 分区 0x0-0x20000
+        bl2 = open(bl2_path, 'rb').read()
+        if bl2[:4] != b'\x01\x00\x64\xaa':
+            sys.exit('preloader 开头不是 FIP 容器头 01 00 64 aa')
+        room = BL2_PART - BL2_OFF
+        if len(bl2) > room:
+            sys.exit('preloader 有 %d 字节，超过 bl2 分区自 0x800 起的 %d' % (len(bl2), room))
+        blk = b'\xff' * BL2_OFF + bl2 + b'\xff' * (room - len(bl2))
+        ubi = open(ubi_path, 'rb').read()
+        open(out_path, 'wb').write(blk + ubi)
+        print('%s: %d 字节（bl2 块 %d + UBI %d）' % (out_path, len(blk) + len(ubi), len(blk), len(ubi)))
+        PY
+        rm -rf "$WORK"
+
+        # ---------------------------------------------------------------
+        # 二、引导程序 zip：两个引导文件 + 一份链接说明
+        # ---------------------------------------------------------------
+        KIT="$RELEASE_TAG-bootloader"
+        mkdir -p "$KIT"
+        cp "$BL2" "$FIP" "$KIT/"
+
+        {
+          echo "$MODEL_TAG 引导程序（$VARIANT_LABEL 变体）"
+          echo "=================================================================="
+          echo "固件版本 : $RELEASE_TAG"
+          echo "编译分支 : $REPO_BRANCH"
+          echo "编译时间 : $DATE"
+          echo
+          echo "链接"
+          echo "----"
+          echo "  恩山论坛           https://www.right.com.cn/forum/thread-8487590-1-1.html"
+          echo "  Github 工程        https://github.com/Loong1996/ImmortalWrt-Airoha"
+          echo "  刷机教程           https://loong1996.github.io/ImmortalWrt-Airoha/recovery-guide.html"
+          echo "  迁移镜像生成器     https://loong1996.github.io/ImmortalWrt-Airoha/migrate-image.html"
+          echo "  工具入口（选包）   https://loong1996.github.io/ImmortalWrt-Airoha/"
+          echo "  固件下载           https://github.com/Loong1996/ImmortalWrt-Airoha/releases"
+          echo "  固件源码           https://github.com/Loong1996/immortalwrt"
+          echo "  QQ 群              1092754041"
+          echo
+          echo "包里是什么"
+          echo "----------"
+          echo "  $BL2"
+          echo "      BL2（preloader）。BootROM 把它收进片上 SRAM，由它把 DDR 初始化起来。"
+          echo "  $FIP"
+          echo "      BL31 + U-Boot，带网页救砖界面。BL2 把它收进 DRAM。"
+          echo
+          echo "两个都要传，这是硬约束：BootROM 只把 BL2 收进 SRAM，那里放不下 FIP，"
+          echo "它也不解析 FIP 里的 BL33。"
+          echo
+          echo "怎么用"
+          echo "------"
+          echo "* 第一次装（机器还是原厂引导）：接一次 USB-TTL，按住 reset 上电，看到"
+          echo "  Press x 时按 x，用 xmodem 依次传这两个文件，之后全在网页里，"
+          echo "  再也不用串口。完整步骤见上面「刷机教程」的第 2 章。"
+          echo "* 已经在跑网页 U-Boot：直接在恢复页「引导升级」里传这两个文件，"
+          echo "  不要勾「重建 UBI」。"
+          echo "* 机器刷的是第三方 tcboot 引导：不用拆机，用同目录下的"
+          echo "  tcboot-to-ubi-uboot.bin，走 tcboot 自带的 spinand 页整片写入。"
+          echo
+          echo "提醒"
+          echo "----"
+          echo "* 首次迁移勾「重建 UBI」会擦掉出厂 MAC（ri 卷）。刷之前先按指南把原厂"
+          echo "  备份做出来，迁完在恢复页「出厂卷」里把 ri 写回去就能找回来。"
+          echo "* 引导文件按机型编译，不要跨机型刷。本包对应 $MODEL_TAG。"
+        } > "$KIT/教程链接.txt"
+
+        zip -qr "$KIT.zip" "$KIT"
+        rm -rf "$KIT"
+
+        ls -l "$MIGRATE" "$KIT.zip"
+        {
+          echo "### 🔧 引导程序套件"
+          echo "- \`$KIT.zip\` — preloader + FIP + 链接说明"
+          echo "- \`$MIGRATE\` — tcboot 机器不拆机迁移用，走 spinand 页从 \`0x0\` 整片写入"
+        } >> "$GITHUB_STEP_SUMMARY"
+
     - name: Upload Firmware To Artifact(将固件上传到Artifact)
       if: steps.compile.outputs.status == 'success' && env.PUBLISH_RELEASE != 'true'
       uses: actions/upload-artifact@v7

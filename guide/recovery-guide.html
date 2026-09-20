@@ -258,7 +258,7 @@ details.ver .nw{padding:0 .95rem .95rem;margin:0}
     <div class="badges"><span class="badge ver">对应恢复页 1.0.0</span><span class="badge">仅适用 ubi 变体</span><a class="badge" href="#models">支持机型 ↓</a></div>
     <a class="star" href="https://github.com/Loong1996/ImmortalWrt-Airoha" target="_blank" rel="noopener"><span class="s">★</span><span class="t">这个 U-Boot 和恢复页都是业余时间做的，全部开源、没有任何收费。<b>觉得有用的话，去 GitHub 点个 Star</b>——这是对作者最好的支持。</span><span class="go">Loong1996/ImmortalWrt-Airoha →</span></a>
     <div class="decide" id="decide">
-      <a class="dcard" href="#serial"><span class="k">第 2 章</span><span class="t">机器现在是原厂 / tcboot</span><span class="d">从没刷过这个 U-Boot，想第一次换过来。需要一次性接串口，之后再也不用。</span><span class="go">从「2 首次迁移」开始 →</span></a>
+      <a class="dcard" href="#serial"><span class="k">第 2 章</span><span class="t">机器现在是原厂 / tcboot</span><span class="d">从没刷过这个 U-Boot，想第一次换过来。需要一次性接串口，之后再也不用；刷过 tcboot 的机器不用拆机。</span><span class="go">从「2 首次迁移」开始 →</span></a>
       <a class="dcard" href="#enter"><span class="k">第 3 章</span><span class="t">已经是这个 U-Boot 了</span><span class="d">系统起不来要救砖，或只是想升级固件 / 引导。全程只要浏览器。</span><span class="go">跳到「3 日常使用」→</span></a>
       <a class="dcard" href="#upgrade"><span class="k">第 4 章</span><span class="t">机器是旧版本，想升到 1.0.0</span><span class="d">在旧页面里传两个引导文件就行，不用重建 UBI，不用串口。</span><span class="go">看「4.1 从旧版本升级」→</span></a>
       <a class="dcard" href="#howto-check"><span class="k">不确定</span><span class="t">怎么判断自己在哪一步</span><span class="d">系统还能进的话，一条命令就能看出来。</span><span class="go">看「1.1 判断你在哪一步」↓</span></a>
@@ -314,6 +314,7 @@ details.ver .nw{padding:0 .95rem .95rem;margin:0}
   <section id="serial">
     <div class="sec-head"><span class="ic i2"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span><h2><span class="no">2.1</span>接串口，传引导文件</h2></div>
     <p class="sec-sub"><b>先不要插网线。</b>只有这一次需要打开机壳接串口，传完两个引导文件之后，剩下的和以后的每一次都只用浏览器。</p>
+    <div class="note ok"><p><b>机器刷的是第三方 tcboot 引导的话，不用拆机。</b>tcboot 自带的 <code>spinand</code> 页能从物理偏移 0 整片写入，用<a href="migrate-image.html">迁移镜像生成器</a>把两个引导文件拼成一个镜像传进去就行，本章可以跳过。原厂引导没有那个页面，还是要接串口。</p></div>
     <div class="steps">
       <div class="step"><span class="num"></span><div class="body">
         <h4>找到串口调试口，接好线</h4>

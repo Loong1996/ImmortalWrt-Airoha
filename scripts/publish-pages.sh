@@ -33,6 +33,7 @@ need "$GITHUB_WORKSPACE/portal/index.html"
 need "$GITHUB_WORKSPACE/portal/hardware-mod.html"
 need "$GITHUB_WORKSPACE/selector/index.html"
 need "$GITHUB_WORKSPACE/guide/recovery-guide.html"
+need "$GITHUB_WORKSPACE/guide/migrate-image.html"
 need "$GITHUB_WORKSPACE/guide/img/board-serial.jpg"
 need "$GITHUB_WORKSPACE/guide/img/reward.jpg"
 
@@ -54,6 +55,7 @@ stage() {
   cp "$GITHUB_WORKSPACE/portal/hardware-mod.html" "$GH/hardware-mod.html"
   cp "$GITHUB_WORKSPACE/selector/index.html" "$GH/packages.html"
   cp "$GITHUB_WORKSPACE/guide/recovery-guide.html" "$GH/recovery-guide.html"
+  cp "$GITHUB_WORKSPACE/guide/migrate-image.html" "$GH/migrate-image.html"
   # 教程与门户的图片都按相对路径 img/ 引用，统一放到站点根下
   mkdir -p "$GH/img"
   cp "$GITHUB_WORKSPACE"/guide/img/* "$GH/img/"
@@ -98,3 +100,4 @@ OWNER=$(echo "$GITHUB_REPOSITORY" | cut -d/ -f1 | tr 'A-Z' 'a-z')
 NAME=$(echo "$GITHUB_REPOSITORY" | cut -d/ -f2)
 echo "门户已更新：https://$OWNER.github.io/$NAME/"
 echo "选包页：https://$OWNER.github.io/$NAME/packages.html"
+echo "迁移镜像生成器：https://$OWNER.github.io/$NAME/migrate-image.html"
