@@ -882,6 +882,46 @@ jobs:
         open(out_path, 'wb').write(blk + ubi)
         print('%s: %d 字节（bl2 块 %d + UBI %d）' % (out_path, len(blk) + len(ubi), len(blk), len(ubi)))
         PY
+
+        # ---------------------------------------------------------------
+        # 网页生成器必须和真 ubinize 产出同一份字节
+        #
+        # guide/migrate-image.html 在浏览器里重跑了一遍 ubinize，给手里已经
+        # 有引导文件、或想用旧版本的人用。它写错了就是让用户变砖，所以这里
+        # 拿本次真实编译出来的 preloader/fip 当场对一遍：从 ubinize 的产物里
+        # 取 image_seq（ubinize 默认随机），喂给网页那份生成器，逐字节比。
+        # 发行版自带的 ubinize 没有 -E，在别处复现不了这个比对。
+        # ---------------------------------------------------------------
+        GEN="$WORK/gen.mjs"
+        python3 - "$GITHUB_WORKSPACE/guide/migrate-image.html" "$GEN" <<'PY'
+        import re, sys
+        src, out = sys.argv[1:3]
+        h = open(src, encoding='utf-8').read()
+        m = re.search(r"<script>\n'use strict';\n(.*?)</script>", h, re.S)
+        if not m:
+            sys.exit('migrate-image.html 里找不到生成器脚本')
+        js = m.group(1)
+        i = js.find('/* ---------- 界面 ---------- */')
+        if i < 0:
+            sys.exit('migrate-image.html 里找不到「界面」分界注释')
+        open(out, 'w', encoding='utf-8').write(js[:i] + '\nexport { build };\n')
+        PY
+        SEQ=$(python3 -c "import struct,sys; d=open(sys.argv[1],'rb').read(); print(struct.unpack('>I', d[0x20000+24:0x20000+28])[0])" "$MIGRATE")
+        node --input-type=module -e "
+        import { build } from 'file://$GEN';
+        import { readFileSync, writeFileSync } from 'node:fs';
+        const bl2 = new Uint8Array(readFileSync('$BL2'));
+        const fip = new Uint8Array(readFileSync('$FIP'));
+        const r = build(bl2, fip, { seq: $SEQ, ec: 0, eof: 5, reserve: 0x100000 });
+        writeFileSync('$WORK/from-page.bin', Buffer.from(r.img));
+        console.log('网页生成器：' + r.img.length + ' 字节，' + r.pebs + ' 个 PEB，fip 占 ' + r.usedEbs + ' 个 LEB');
+        "
+        if cmp "$MIGRATE" "$WORK/from-page.bin"; then
+          echo "✓ guide/migrate-image.html 与 ubinize 的产出逐字节相同"
+        else
+          echo "::error::guide/migrate-image.html 生成的镜像与 ubinize 不一致，按它做出来的迁移镜像可能让设备变砖"
+          exit 1
+        fi
         rm -rf "$WORK"
 
         # ---------------------------------------------------------------
