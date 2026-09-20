@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>tcboot 迁移网页 U-Boot 镜像生成与迁移教程</title>
+<title>tcboot 不拆机迁移网页 U-Boot 工具与教程</title>
 <meta name="description" content="刷了第三方 tcboot 引导的 Airoha 光猫不拆机换成网页 U-Boot：浏览器里把 preloader.bin 与 bl31-uboot.fip 拼成迁移镜像，走 tcboot 自带的 spinand 页整片写入">
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--fg:#1d1d1f;--c2:#6e6e73;--c3:#aeaeb2;--sep:rgba(60,60,67,.16);--blue:#0a66d6;--red:#d9342b;--org:#b8500f;--grn:#1f8a3b;--fill:#e8e8ed;--btn:#fff;--btnb:rgba(0,0,0,.14)}
@@ -81,7 +81,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
 <a class="back" href="recovery-guide.html"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>返回网页 U-Boot 指南</a>
 
-<h1>tcboot 迁移网页 U-Boot 镜像生成与迁移教程</h1>
+<h1>tcboot 不拆机迁移网页 U-Boot 工具与教程</h1>
 <p class="lede">刷了第三方 tcboot 引导的机器换成网页 U-Boot，不用拆机、不用串口。</p>
 
 <div class="note warn"><p><b>只给刷了 tcboot 的机器用。</b>原厂引导走串口首刷，已经在跑网页 U-Boot 的走「引导升级」。</p></div>
@@ -128,19 +128,19 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
 <div class="steps">
   <div class="step"><span class="num"></span><div class="body">
-    <h4>按住 reset 上电</h4>
-    <p>电脑网口设成静态 <code>192.168.1.10</code> / <code>255.255.255.0</code>。</p>
+    <h4>按 tcboot 的刷机流程进恢复模式</h4>
   </div></div>
   <div class="step"><span class="num"></span><div class="body">
     <h4>浏览器打开</h4>
     <p><span class="url">http://192.168.1.1/spinand.html</span></p>
   </div></div>
   <div class="step"><span class="num"></span><div class="body">
-    <h4>上传 <code>tcboot-to-ubi-uboot.bin</code>，等它自己重启</h4>
+    <h4>上传 <code>tcboot-to-ubi-uboot.bin</code></h4>
   </div></div>
   <div class="step"><span class="num"></span><div class="body">
-    <h4>看到流水灯就成了</h4>
-    <p>停在网页救砖界面，正常 —— 还没刷固件。</p>
+    <h4>等它进网页 U-Boot</h4>
+    <p>刷写成功后会自动进入网页 U-Boot，面板灯呈流水效果。几分钟都没有流水效果的话，断电重新上电。</p>
+    <p>进去之后停在救砖界面是正常的 —— 还没刷固件。</p>
     <p style="color:var(--c2);font-size:.88rem">接了串口的话，这一次开机会刷一屏 <code>UBI: Bad EC magic</code>，是正常的，第二次开机就没有了。</p>
   </div></div>
   <div class="step"><span class="num"></span><div class="body">
