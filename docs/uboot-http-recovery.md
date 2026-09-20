@@ -720,15 +720,21 @@ tcboot 的 web 恢复界面（按住 reset 上电，`http://192.168.1.1/spinand.
 | --- | --- |
 | `0x00000` | `0xff` × `0x800` —— BootROM 在 `0x800` 找 FIP 头 |
 | `0x00800` | `preloader.bin`，补 `0xff` 到 `0x20000` |
-| `0x20000` | UBI 镜像：PEB 0/1 卷表，之后 static 卷 `fip`，末尾 5 个 EOF 标记块 |
+| `0x20000` | UBI 镜像：PEB 0/1 卷表，之后 static 卷 `fip` |
 
 **只写 BL2 是必砖**：BL2 按卷名去 UBI 里找 `fip`，而 tcboot 的 ubi 起点在 `0x100000`、
 本布局在 `0x20000`，挂不上就停在 `No volume named fip`，只能接串口。所以两样必须
 一次写完，而 tcboot 的 `/uboot` 端点只写 `bootloader` 分区、偏移还是 0，做不到。
 
-**闪存容量不影响。** 镜像只占开头 10 个 PEB，spinand 整片擦之后余下的块都是擦除态，
+**闪存容量不影响。** 镜像只占开头几个 PEB，spinand 整片擦之后余下的块都是擦除态，
 `ubi part ubi` 挂上来直接登记为空闲；UBI 的坏块预留是 attach 时从空闲池里自己划的，
-不需要镜像事先留。5 个 EOF 标记让 BL2 扫到这儿就停，不必走完整片。
+不需要镜像事先留。
+
+**不写 EOF 标记块（ubinize 的 `-E`）。** 那是让 BL2 提前结束扫描的优化，在这里是陷阱：
+UBI 改卷表是换一个 PEB 重写、再放掉旧的，所以首次启动跑完 `_init_env` 建出 `ubootenv`
+之后，卷表就搬到标记块后面去了。下次上电 BL2 扫到标记停手，卷表落在范围外，报
+`No volume named fip` —— 第一次能起、重新上电就砖，只能接串口。`ubi_format` 建出来的
+UBI 本来也没有标记，BL2 每次全片扫，迁移镜像跟它保持一致。
 
 **迁移之后按日常刷机走，不是首刷。** `_firstboot` 的两道闸都过得去（`ubi part ubi`
 挂得上、`ubi check fip` 找得到），于是 `_init_env` 建出 `ubootenv` / `ubootenv2`，

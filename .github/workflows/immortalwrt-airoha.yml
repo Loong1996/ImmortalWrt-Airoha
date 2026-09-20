@@ -842,8 +842,13 @@ jobs:
         #
         # 只写 BL2 是必砖：BL2 按卷名去 UBI 里找 fip，而 tcboot 的 ubi 起点
         # 在 0x100000、我们的在 0x20000，挂不上就停在 No volume named fip。
-        # 几何取自镜像定义（BLOCKSIZE := 128k / PAGESIZE := 2048 / -E 5），
-        # 五个机型完全一致。
+        # 几何取自镜像定义（BLOCKSIZE := 128k / PAGESIZE := 2048），五个机型一致。
+        #
+        # 不加 ubinize 的 -E（EOF 标记块）。那是让 BL2 提前结束扫描的优化，
+        # 在这里会变砖：UBI 改卷表是换一个 PEB 重写、再放掉旧的，首次启动跑完
+        # _init_env 建出 ubootenv 之后卷表就搬到标记块后面，下次上电 BL2 扫到
+        # 标记停手，卷表在范围外 -> No volume named fip，只能接串口。正常迁移
+        # 出来的机器（ubi_format 建的 UBI）本来也没有标记，BL2 每次全片扫。
         # ---------------------------------------------------------------
         UBINIZE="$OPENWRT_PATH/staging_dir/host/bin/ubinize"
         [ -x "$UBINIZE" ] || UBINIZE=$(command -v ubinize || true)
@@ -862,8 +867,7 @@ jobs:
         vol_size=1MiB
         image=$PWD/$FIP
         EOF
-        # -E 5 是 OpenWrt 给 ubinize 加的 EOF 标记块，发行版自带的 ubinize 没有
-        "$UBINIZE" -o "$WORK/ubi.img" -p 128KiB -m 2048 -E 5 \
+        "$UBINIZE" -o "$WORK/ubi.img" -p 128KiB -m 2048 \
           ${SOURCE_DATE_EPOCH:+-Q $SOURCE_DATE_EPOCH} "$WORK/fip.cfg"
 
         MIGRATE="tcboot-to-ubi-uboot.bin"
@@ -912,7 +916,7 @@ jobs:
         import { readFileSync, writeFileSync } from 'node:fs';
         const bl2 = new Uint8Array(readFileSync('$BL2'));
         const fip = new Uint8Array(readFileSync('$FIP'));
-        const r = build(bl2, fip, { seq: $SEQ, ec: 0, eof: 5, reserve: 0x100000 });
+        const r = build(bl2, fip, { seq: $SEQ, ec: 0, eof: 0, reserve: 0x100000 });
         writeFileSync('$WORK/from-page.bin', Buffer.from(r.img));
         console.log('网页生成器：' + r.img.length + ' 字节，' + r.pebs + ' 个 PEB，fip 占 ' + r.usedEbs + ' 个 LEB');
         "

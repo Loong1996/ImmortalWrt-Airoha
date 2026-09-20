@@ -172,7 +172,7 @@ function crc32(buf, off, len, init) {
   return c >>> 0;
 }
 
-/* ---------- 几何：BLOCKSIZE := 128k / PAGESIZE := 2048 / -E 5 ---------- */
+/* ---------- 几何：BLOCKSIZE := 128k / PAGESIZE := 2048 ---------- */
 var PEB = 128 * 1024;
 var VID_OFF = 2048;
 var LEB_START = 4096;
@@ -186,7 +186,14 @@ var FIP_MAGIC = 0xAA640001;      // 盘上小端：01 00 64 aa
 
 var LAYOUT_ID = 0x7FFFEFFF;
 var VID_DYNAMIC = 1, VID_STATIC = 2, COMPAT_REJECT = 5;
-var DEF = { seq: 0, ec: 0, eof: 5, reserve: 0x100000 };
+/*
+ * 不写 EOF 标记块（ubinize 的 -E）。那是给 BL2 提前结束扫描用的优化，
+ * 在这里是陷阱：UBI 改卷表是换一个 PEB 重写、再放掉旧的，所以首次启动
+ * 跑完 _init_env 建出 ubootenv 之后，卷表就搬到标记块后面去了。下次上电
+ * BL2 扫到标记停手，卷表在范围外，报 No volume named fip —— 只能接串口。
+ * 正常迁移出来的机器（ubi_format 建的 UBI）本来也没有标记，全片扫。
+ */
+var DEF = { seq: 0, ec: 0, eof: 0, reserve: 0x100000 };
 
 function ecHdr(u8, dv, off, ec, seq, eof) {
   u8.fill(0, off, off + 64);
@@ -234,7 +241,7 @@ function vtblRec(u8, dv, off, v) {
 /*
  * 0x00000  0xff × 0x800     BootROM 在 0x800 找 FIP 头
  * 0x00800  preloader.bin    BL2
- * 0x20000  UBI 镜像         PEB 0/1 卷表，之后是 static 卷 fip，末尾 5 个 EOF 标记块
+ * 0x20000  UBI 镜像         PEB 0/1 卷表，之后是 static 卷 fip
  */
 function build(bl2, fip, opt) {
   opt = opt || DEF;
