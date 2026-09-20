@@ -1,6 +1,6 @@
 # ImmortalWrt-Airoha
 
-给 Airoha 方案光猫编译的 ImmortalWrt 固件，配一个能用浏览器刷机、救砖的 U-Boot（网页 U-Boot）。
+给 Airoha 方案光猫编译的 ImmortalWrt 固件，配一个能用浏览器刷机、救砖的 U-Boot（网页 U-Boot，界面中英双语）。
 
 **[下载固件](https://github.com/Loong1996/ImmortalWrt-Airoha/releases)** · **[网页 U-Boot 指南](https://loong1996.github.io/ImmortalWrt-Airoha/recovery-guide.html)** · **[工具入口](https://loong1996.github.io/ImmortalWrt-Airoha/)**（选包 / 教程）· QQ 群 **1092754041**
 
