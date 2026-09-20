@@ -79,6 +79,7 @@
 | [原厂备份与刷回原厂](docs/backup-and-restore.md) | 原厂分区表、整片备份步骤、回原厂的几条路 |
 | [已知问题：USB2 口带不动 USB3 U 盘](docs/usb2-port-issue.md) | 已排除的假设、寄存器数据、下次从哪接手 |
 | [已知问题：串口迁移后软件重启卡在 Press x](docs/warm-reset-press-x.md) | strap 上电锁存的根因、实测数据、试过的路线、待做的提示 |
+| [已知问题：2.5G 口偶发收不到包](docs/lan1-en8811h-boot-race.md) | 重启即恢复；现场计数、已排除的方向、复现矩阵 |
 
 **开发与维护**
 
