@@ -45,7 +45,8 @@ Release 的标题、正文与 tag 都会标出本次用的机型与变体，例�
 * 额外产出 `*-recovery.itb`，是 initramfs 救援镜像，另外三种变体都没有
 * 升级用 `sysupgrade.itb`
 * 原厂 `ri` 与 `bosa` 由官方转换流程转存为同名 UBI 卷，MAC 得以保留
-* `ri` 的读取由 preinit 钩子在用户态完成，**没转存 `ri` 卷也能正常启动**（退化为随机 MAC）；转存过则拿到真实硬件 MAC。丢了可以在网页救砖的「按卷写入」页把备份写回去
+* `ri` 的读取由 preinit 钩子 [`90_airoha_ubi_mac`](https://github.com/Loong1996/immortalwrt/blob/master-airoha/target/linux/airoha/base-files/lib/preinit/90_airoha_ubi_mac) 在用户态完成，**没转存 `ri` 卷也能正常启动**（退化为随机 MAC，生成一次后固化在 `/etc/airoha-ubi-mac`，`sysupgrade` 也保留，所以不会每次开机都变）；转存过则拿到真实硬件 MAC。丢了可以在网页救砖的「按卷写入」页把备份写回去
+* MD、MF、TF 都走这个钩子。ZN504XG-D 原厂没有 `ri` 卷，它用的就是那个固化下来的随机 MAC
 
 UBI 里的卷（`fip` 也在其中，不是独立分区）：
 
@@ -61,7 +62,7 @@ ubi @ 0x20000  255.875 MB
 
 > ⚠️ **上面这条只对本项目编的固件成立。上游官方 snapshot 的 ubi 镜像缺 `ri` 卷会整机失联。**
 >
-> 硬依赖来自共用 dtsi 里 `&gdm1` / `&gdm4` 的 `nvmem-cells = <&macaddr_factory_3e (0)>`。本项目的 `an7581-nokia_xg-040g-md-ubi.dts` 用 `/delete-property/` 删掉了这两个引用，改由 preinit 在用户态读卷；**上游的同名文件没有这段**，保留着硬依赖。
+> 硬依赖来自共用 dtsi 里 `&gdm1` / `&gdm4` 的 `nvmem-cells = <&macaddr_factory_3e (0)>`（MF 是 `&gdm1` / `&gdm3`）。本项目的 `an7581-nokia_xg-040g-md-ubi.dts`、`an7581-nokia_xg-040g-tf-ubi.dts` 与 `an7583-nokia_xg-040g-mf-ubi.dts` 都用 `/delete-property/` 删掉了这些引用，改由 preinit 在用户态读卷；**上游的同名文件没有这段**，保留着硬依赖。
 >
 > 卷不存在时 nvmem provider 永不注册，`of_get_ethdev_address()` 返回 `-EPROBE_DEFER`，而驱动对这个错误码是直接 return 的（不会退化为随机 MAC），`airoha_eth` 与其下游的 DSA 交换机永久停在 deferred probe，整机无网络且日志里没有任何线索：
 >

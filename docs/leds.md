@@ -2,6 +2,8 @@
 
 XG-040G-MD 是光猫改的路由器，**面板丝印还是光猫那套**，而 DTS 里套的是 OpenWrt 的通用命名，两者对不上号。下面按实机 `/sys/class/leds/` 的名字列。
 
+> ℹ️ **灯的颜色随机型而变。** 下表按 XG-040G-MD / XG-140G-MD 写。XG-040G-TF 与 ZNXT ZN504XG-D 的面板灯与网口灯是**蓝色**的，名字里的 `green` 换成 `blue`（例如 `blue:power`、`mt7530-0:0f:blue:lan-1`）；「光信号」那盏两者都仍是 `red:wan`。ZN504XG-D 没有 USB，也就没有那两盏灯。
+
 ## 面板灯
 
 | 面板丝印 | sysfs 名 | GPIO | 现在的行为 |
