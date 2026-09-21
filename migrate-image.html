@@ -139,13 +139,13 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   </div></div>
   <div class="step"><span class="num"></span><div class="body">
     <h4>等它进网页 U-Boot</h4>
-    <p>刷写成功后大概等 1 分钟，面板灯呈流水效果就是进去了。几分钟都没有流水灯的话，断电重新上电再等 1 分钟，一般就能进；还是进不去就接 TTL 救砖。</p>
+    <p>刷写成功后会自动进入网页 U-Boot，面板灯呈流水效果。几分钟都没有流水效果的话，断电重新上电。</p>
     <p>进去之后停在救砖界面是正常的 —— 还没刷固件。</p>
     <p style="color:var(--c2);font-size:.88rem">接了串口的话，这一次开机会刷一屏 <code>UBI: Bad EC magic</code>，是正常的，第二次开机就没有了。</p>
   </div></div>
   <div class="step"><span class="num"></span><div class="body">
     <h4>刷固件</h4>
-    <p>机器有流水灯效果后，网线插到 LAN 2~4 任意一口，浏览器打开 <span class="url">http://192.168.1.1</span>，在网页 U-Boot 里选「日常刷机」，上传固件刷机即可。</p>
+    <p>在网页 U-Boot 里选「日常刷机」，上传固件刷机即可。</p>
     <p style="color:var(--c2);font-size:.88rem">详见<a href="recovery-guide.html#web-use">网页 U-Boot 指南 · 3.3 日常刷机</a>。</p>
   </div></div>
 </div>
