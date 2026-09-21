@@ -1,3 +1,5 @@
+[English](README.en.md)
+
 给 Airoha 方案光猫用的 ImmortalWrt 固件，网页 U-Boot 能在浏览器里刷机、救砖。
 
 **[下载固件](https://github.com/Loong1996/ImmortalWrt-Airoha/releases)** · **[网页 U-Boot 指南](https://loong1996.github.io/ImmortalWrt-Airoha/recovery-guide.html)** · **[工具入口](https://loong1996.github.io/ImmortalWrt-Airoha/)**（选包 / 教程）· QQ 群 **1092754041**
