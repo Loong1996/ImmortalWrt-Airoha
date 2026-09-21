@@ -1,28 +1,18 @@
-# ImmortalWrt-Airoha
-
-给 Airoha 方案光猫编译的 ImmortalWrt 固件，配一个能用浏览器刷机、救砖的 U-Boot（网页 U-Boot，界面中英双语）。
+给 Airoha 方案光猫用的 ImmortalWrt 固件，网页 U-Boot 能在浏览器里刷机、救砖。
 
 **[下载固件](https://github.com/Loong1996/ImmortalWrt-Airoha/releases)** · **[网页 U-Boot 指南](https://loong1996.github.io/ImmortalWrt-Airoha/recovery-guide.html)** · **[工具入口](https://loong1996.github.io/ImmortalWrt-Airoha/)**（选包 / 教程）· QQ 群 **1092754041**
 
-☕ 业余时间维护，全部开源、不收费。觉得有用，**点个 Star** 就是最好的支持；也可以请作者喝杯咖啡：
+☕ 业余维护，开源不收费。觉得有用就 **点个 Star**，或请作者喝杯咖啡：
 
 <img src="guide/img/reward.jpg" width="180" alt="Loong 的赞赏码">
+
+## 支持机型
+
+Nokia XG-040G-MD、Nokia XG-040G-MF、Nokia XG-140G-MD、Nokia XG-140G-MF、Nokia XG-040G-TF、ZNXT ZN504XG-D、ZNXT ZN515XG-D
 
 ![网页 U-Boot](img/web-uboot.png)
 
 ![LuCI 概览](img/immortalwrt.png)
-
-## 支持机型
-
-| 机型 | SoC | 下载时选 | 状态 |
-| --- | --- | --- | --- |
-| Nokia XG-040G-MD | AN7581 | `XG-040G-MD` | 实机验证 |
-| Nokia XG-040G-MF | AN7583 | `XG-040G-MF` | 实机验证 |
-| Nokia XG-140G-MD | AN7581 | `XG-040G-MD` | 实测可用 |
-| Nokia XG-040G-TF | AN7581 | `XG-040G-TF` | 待实机验证（芯片有安全启动，BL2 与 U-Boot 都带证书，不能用 MD 的引导文件；已能进网页 U-Boot） |
-| ZNXT ZN515XG-D | AN7581 | `XG-040G-MD` | 实测可用 |
-
-其他 AN7581 参考设计的机器大概率也能直接用 MD 固件，试过的请到 Issues 或 QQ 群反馈。
 
 ## 刷机之前
 
