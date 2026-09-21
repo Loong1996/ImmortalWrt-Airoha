@@ -136,14 +136,20 @@ h1{font-size:1.6rem;font-weight:700;letter-spacing:-.01em;margin:0 0 .3rem}
     </div>
 
     <div class="bh" id="models">支持机型</div>
+    <!-- models-table：以 guide/recovery-guide.html 1.2 为准，改完跑 scripts/sync-models-table.py -->
+    <!-- models-table -->
     <div class="box"><table class="kv models">
-      <tr><th>机型</th><th>SoC</th><th>子目标</th><th>变体</th><th>状态</th><th>备注</th></tr>
-      <tr><td><b>Nokia XG-040G-MD</b></td><td>Airoha AN7581</td><td><code>an7581</code></td><td><code>ubi</code> / <code>stock</code></td><td><span class="st ok">实机验证</span></td><td>2.5G 光猫，上游原生支持</td></tr>
-      <tr><td><b>Nokia XG-040G-MF</b></td><td>Airoha AN7583</td><td><code>an7583</code></td><td><code>ubi</code> / <code>stock</code></td><td><span class="st ok">实机验证</span></td><td>与 MD 共用分区布局与网页 U-Boot</td></tr>
-      <tr><td><b>Nokia XG-140G-MD</b></td><td>Airoha AN7581</td><td><code>an7581</code></td><td><code>ubi</code>（用 XG-040G-MD 固件）</td><td><span class="st ok">实测可用</span></td><td>与 XG-040G-MD 同一套参考设计，直接刷 MD 的固件；设备详情页会显示为 XG-040G-MD</td></tr>
-      <tr><td><b>ZNXT ZN515XG-D</b></td><td>Airoha AN7581</td><td><code>an7581</code></td><td><code>ubi</code>（用 XG-040G-MD 固件）</td><td><span class="st ok">实测可用</span></td><td>同上，直接刷 XG-040G-MD 的固件</td></tr>
+      <tr><th>机型</th><th>SoC</th><th>下载时选</th><th>状态</th><th>备注</th></tr>
+      <tr><td><b>Nokia XG-040G-MD</b></td><td>Airoha AN7581</td><td>XG-040G-MD</td><td><span class="st ok">实机验证</span></td><td>本教程的截图与串口日志都来自它</td></tr>
+      <tr><td><b>Nokia XG-040G-MF</b></td><td>Airoha AN7583</td><td>XG-040G-MF</td><td><span class="st ok">实机验证</span></td><td>与 MD 共用分区布局与恢复页，步骤完全相同</td></tr>
+      <tr><td><b>Nokia XG-140G-MD</b></td><td>Airoha AN7581</td><td>XG-040G-MD</td><td><span class="st ok">实测可用</span></td><td>同一套参考设计，直接用 XG-040G-MD 的固件；设备详情页会显示为 XG-040G-MD</td></tr>
+      <tr><td><b>Nokia XG-140G-MF</b></td><td>Airoha AN7583</td><td>XG-040G-MF</td><td><span class="st ok">实测可用</span></td><td>同一套参考设计，直接用 XG-040G-MF 的固件；设备详情页会显示为 XG-040G-MF</td></tr>
+      <tr><td><b>Nokia XG-040G-TF</b></td><td>Airoha AN7581</td><td>XG-040G-TF</td><td><span class="st ok">实机验证</span></td><td>硬件与 MD 相同，但芯片烧了安全启动密钥，BL2 和 U-Boot 都要带证书：必须用 XG-040G-TF 自己的两个引导文件，<b>不能用 MD 的</b>。面板灯与网口灯是蓝色的（光信号灯仍是红的）</td></tr>
+      <tr><td><b>ZNXT ZN504XG-D</b></td><td>Airoha AN7581</td><td>ZN504XG-D</td><td><span class="st ok">实机验证</span></td><td>专用固件：闪存与指示灯（蓝色）都和 MD 不同，没有 USB，也没有出厂 MAC</td></tr>
+      <tr><td><b>ZNXT ZN515XG-D</b></td><td>Airoha AN7581</td><td>XG-040G-MD</td><td><span class="st ok">实测可用</span></td><td>同上，直接用 XG-040G-MD 的固件</td></tr>
     </table></div>
-    <p class="note">同一套 AN7581 参考设计的其他机型大概率也能直接用 XG-040G-MD 的固件，试过的欢迎到仓库 Issues 或 QQ 群反馈，会加进这张表。变体含义：<code>ubi</code> 作者魔改 U-Boot（带网页 U-Boot），<code>stock</code> 保留原厂引导。</p>
+    <!-- /models-table -->
+    <p class="note">其他 AN7581 参考设计的机器大概率也能直接用 MD 固件，试过的请到仓库 Issues 或 QQ 群 <b>1092754041</b> 反馈。变体含义：<code>ubi</code> 作者魔改 U-Boot（带网页 U-Boot），<code>stock</code> 保留原厂引导。</p>
 
     <div class="bh" id="about">关于</div>
     <div class="box"><table class="kv">

@@ -28,6 +28,7 @@ p{margin:.5rem 0}
 .note.warn{border-left-color:var(--org)}.note.warn b{color:var(--org)}
 .note.danger{border-left-color:var(--red)}.note.danger b{color:var(--red)}
 .note>:first-child{margin-top:0}.note>:last-child{margin-bottom:0}
+.note.lg{font-size:1.08rem}
 
 .slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.8rem;margin:.9rem 0}
 .slot{background:var(--card);border:1px solid var(--sep);border-radius:11px;padding:.9rem 1rem;display:flex;flex-direction:column;gap:.45rem;position:relative;transition:border-color .12s}
@@ -90,7 +91,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 <div class="sec-head"><span class="n">01</span><h2>选两个文件</h2></div>
 <p>网页 U-Boot 的那两个文件，拖进来。</p>
 
-<div class="note"><p>Release 里按机型也直接给了 <code>…-tcboot-to-ubi-uboot.bin</code>，下好了就不用在这儿生成，直接跳到 02。</p></div>
+<div class="note lg"><p>现成 <code>…-tcboot-to-ubi-uboot.bin</code> 见<a href="recovery-guide.html#files">指南 1.3 下载固件</a>，下完跳到 02。</p></div>
 
 <div class="slots">
   <div class="slot" id="s-bl2">

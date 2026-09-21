@@ -72,6 +72,9 @@ p{margin:.5rem 0}
 .term b{color:#fff}.term .r{color:#ff6b6b}.term .g{color:#6bd47b}.term .y{color:#f2c94c}.term .m{color:#8e8e93}
 .term-cap,.mock-cap,.shot-cap{color:var(--c3);font-size:.82rem;margin:.25rem 0 .8rem}
 .shot{margin:.7rem 0}.shot img{max-width:100%;height:auto;border-radius:9px;border:1px solid var(--sep);display:block}
+.serial-shot .pic{padding:.7rem .9rem .35rem}
+.serial-shot img{width:50%;max-width:528px;height:auto;border-radius:9px;border:1px solid var(--sep);display:block}
+.serial-shot .miss{color:var(--c2);padding:.5rem 0 .85rem}
 .diagram{background:var(--card);border:1px solid var(--sep);border-radius:9px;padding:1rem;margin:.7rem 0;overflow-x:auto}
 .wire-row{display:flex;align-items:center;gap:1rem;justify-content:center;min-width:520px}
 .node{background:var(--fill);border-radius:8px;padding:.5rem .9rem;text-align:center;min-width:88px}
@@ -115,6 +118,7 @@ p{margin:.5rem 0}
 .check .box{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--c3);flex:none;margin-top:.15rem}
 .check .sub{color:var(--c2);font-size:.88rem}
 .only{font-size:.72rem;color:var(--org);margin-left:.4rem;font-weight:500}
+h2 .only{font-size:.92rem}
 details.faq{background:var(--card);border:1px solid var(--sep);border-radius:9px;padding:.6rem .95rem;margin:.5rem 0}
 details.faq summary{cursor:pointer;font-weight:600}
 details.faq .a{color:var(--c2);margin-top:.5rem}
@@ -202,7 +206,8 @@ details.ver .nw{padding:0 .95rem .95rem;margin:0}
   .rail[data-open]{max-height:80vh;overflow-y:auto;padding-bottom:.8rem}
   .rail[data-open]>:not(.id){display:flex}
   html{scroll-padding-top:3.6rem}
-  main{padding:1.4rem 1rem 3rem}.mock iframe{height:640px}}
+  main{padding:1.4rem 1rem 3rem}.mock iframe{height:640px}
+  .serial-shot img{width:100%;max-width:100%}}
 .models td{white-space:nowrap}.models td:last-child{white-space:normal}
 .st{font-size:.8rem;padding:.1rem .55rem;border-radius:99px;background:rgba(120,120,128,.14);color:var(--c2)}
 .st.ok{color:#1f8a3b;background:rgba(52,199,89,.15)}.st.wip{color:#b8500f;background:rgba(255,159,10,.15)}
@@ -232,7 +237,8 @@ details.ver .nw{padding:0 .95rem .95rem;margin:0}
   <span class="tag">2 首次迁移（需要串口）</span>
   <a class="n" href="#serial"><span class="ic i2"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span><span class="no">2.1</span>接串口，传引导文件</a>
   <a class="n" href="#connect"><span class="ic i2"><svg viewBox="0 0 24 24"><path d="M9 7V3M15 7V3M6 7h12v5a6 6 0 0 1-12 0zM12 18v3"/></svg></span><span class="no">2.2</span>连上恢复页</a>
-  <a class="n" href="#web-migrate"><span class="ic i2"><svg viewBox="0 0 24 24"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg></span><span class="no">2.3</span>网页写入三样</a>
+  <a class="n" href="#backup"><span class="ic i2"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg></span><span class="no">2.3</span>原厂数据备份</a>
+  <a class="n" href="#web-migrate"><span class="ic i2"><svg viewBox="0 0 24 24"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg></span><span class="no">2.4</span>网页写入三样</a>
   <span class="tag">3 日常使用（只要网页）</span>
   <a class="n" href="#enter"><span class="ic i1"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><span class="no">3.1</span>进恢复页</a>
   <a class="n" href="#pages"><span class="ic i1"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4zM8 7v10"/></svg></span><span class="no">3.2</span>恢复页一览</a>
@@ -269,21 +275,29 @@ details.ver .nw{padding:0 .95rem .95rem;margin:0}
 
   <section id="howto-check">
     <div class="sec-head"><span class="ic i5"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span><h2><span class="no">1.1</span>判断你在哪一步</h2></div>
-    <p>机器刷的是第三方 tcboot 引导的话，不用拆机、不用串口，走<a href="migrate-image.html">不拆机迁移</a>：把两个引导文件拼成一个镜像，用 tcboot 自带的 <code>spinand</code> 页整片写入，写完就是网页 U-Boot。</p>
+    <div class="box"><table class="kv models">
+      <tr><th>看到</th><th>说明</th><th>走哪条</th></tr>
+      <tr><td><b>第三方 tcboot</b></td><td>不用拆机、不用串口</td><td><a href="migrate-image.html">不拆机迁移</a></td></tr>
+      <tr><td><b>原厂系统</b></td><td>需要接一次串口</td><td><a href="#serial">第 2 章 首次迁移</a></td></tr>
+      <tr><td><b>网页 U-Boot</b></td><td>只要浏览器</td><td><a href="#enter">第 3 章 日常使用</a></td></tr>
+    </table></div>
   </section>
 
   <section id="models">
     <div class="sec-head"><span class="ic i5"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><h2><span class="no">1.2</span>支持机型</h2></div>
     <p class="sec-sub">网页 U-Boot 本身不认机型，同一份页面服务所有开了它的板子。下表是已知能用的机器，以及下载固件时该选哪一个。</p>
+    <!-- models-table -->
     <div class="box"><table class="kv models">
       <tr><th>机型</th><th>SoC</th><th>下载时选</th><th>状态</th><th>备注</th></tr>
       <tr><td><b>Nokia XG-040G-MD</b></td><td>Airoha AN7581</td><td>XG-040G-MD</td><td><span class="st ok">实机验证</span></td><td>本教程的截图与串口日志都来自它</td></tr>
       <tr><td><b>Nokia XG-040G-MF</b></td><td>Airoha AN7583</td><td>XG-040G-MF</td><td><span class="st ok">实机验证</span></td><td>与 MD 共用分区布局与恢复页，步骤完全相同</td></tr>
       <tr><td><b>Nokia XG-140G-MD</b></td><td>Airoha AN7581</td><td>XG-040G-MD</td><td><span class="st ok">实测可用</span></td><td>同一套参考设计，直接用 XG-040G-MD 的固件；设备详情页会显示为 XG-040G-MD</td></tr>
+      <tr><td><b>Nokia XG-140G-MF</b></td><td>Airoha AN7583</td><td>XG-040G-MF</td><td><span class="st ok">实测可用</span></td><td>同一套参考设计，直接用 XG-040G-MF 的固件；设备详情页会显示为 XG-040G-MF</td></tr>
       <tr><td><b>Nokia XG-040G-TF</b></td><td>Airoha AN7581</td><td>XG-040G-TF</td><td><span class="st ok">实机验证</span></td><td>硬件与 MD 相同，但芯片烧了安全启动密钥，BL2 和 U-Boot 都要带证书：必须用 XG-040G-TF 自己的两个引导文件，<b>不能用 MD 的</b>。面板灯与网口灯是蓝色的（光信号灯仍是红的）</td></tr>
       <tr><td><b>ZNXT ZN504XG-D</b></td><td>Airoha AN7581</td><td>ZN504XG-D</td><td><span class="st ok">实机验证</span></td><td>专用固件：闪存与指示灯（蓝色）都和 MD 不同，没有 USB，也没有出厂 MAC</td></tr>
       <tr><td><b>ZNXT ZN515XG-D</b></td><td>Airoha AN7581</td><td>XG-040G-MD</td><td><span class="st ok">实测可用</span></td><td>同上，直接用 XG-040G-MD 的固件</td></tr>
     </table></div>
+    <!-- /models-table -->
     <p class="sec-sub">其他 AN7581 参考设计的机器大概率也能直接用 MD 固件，试过的请到仓库 Issues 或 QQ 群 <b>1092754041</b> 反馈。</p>
   </section>
 
@@ -299,7 +313,7 @@ details.ver .nw{padding:0 .95rem .95rem;margin:0}
       <li><span class="box"></span><div><b>网线一根 + 一台电脑</b><div class="sub">只用来连这台路由器，不需要能上外网，插哪个口见<a href="#connect">「连上恢复页」</a>。固件先在<a href="#files">上方</a>下好。页面按桌面浏览器设计，手机也能用。</div></div></li>
       <li><span class="box"></span><div><b>USB 转 TTL 串口模块<span class="only">仅首次迁移</span></b><div class="sub">3.3V 电平的那种（不是 RS232），CH340 一类都行，带 3 根杜邦线。之后日常用网页就不再需要它。</div></div></li>
       <li><span class="box"></span><div><b>支持 Xmodem 发送的串口终端<span class="only">仅首次迁移</span></b><div class="sub">Windows 上 MobaXterm、SecureCRT、Xshell 都自带「发送文件 → Xmodem」；macOS / Linux 用 <code>minicom</code>，或装 <code>lrzsz</code> 后在 <code>screen</code> 里用 <code>sx</code>。</div></div></li>
-      <li><span class="box"></span><div><b>先做一次整机 flash 备份<span class="only">仅首次迁移</span></b><div class="sub">首次迁移会清空原厂分区，其中 <code>ri</code>（MAC / 序列号）和 <code>bosa</code>（光模块校准）是这台机器独有的、没有第二份。备份方法见 <a href="https://github.com/Loong1996/ImmortalWrt-Airoha/blob/main/docs/backup-and-restore.md" target="_blank" rel="noopener">原厂备份与刷回原厂</a>。备份的 <code>all_flash.bin</code> 以后能在网页里整片刷回原厂。</div></div></li>
+      <li><span class="box"></span><div><b>先做一次整机 flash 备份<span class="only">仅首次迁移</span></b><div class="sub">首次迁移会清空原厂分区，其中 <code>ri</code>（MAC / 序列号）和 <code>bosa</code>（光模块校准）是这台机器独有的、没有第二份。接上恢复页之后在<a href="#backup">「2.3 原厂数据备份」</a>里整片下下来。备份的 <code>all_flash.bin</code> 以后能在网页里整片刷回原厂。</div></div></li>
     </ul>
   </section>
 
@@ -308,12 +322,19 @@ details.ver .nw{padding:0 .95rem .95rem;margin:0}
   <section id="serial">
     <div class="sec-head"><span class="ic i2"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span><h2><span class="no">2.1</span>接串口，传引导文件</h2></div>
     <p class="sec-sub"><b>先不要插网线。</b>只有这一次需要打开机壳接串口，传完两个引导文件之后，剩下的和以后的每一次都只用浏览器。</p>
-    <div class="note ok"><p><b>机器刷的是第三方 tcboot 引导的话，不用拆机。</b>tcboot 自带的 <code>spinand</code> 页能从物理偏移 0 整片写入，用<a href="migrate-image.html">迁移镜像生成器</a>把两个引导文件拼成一个镜像传进去就行，本章可以跳过。原厂引导没有那个页面，还是要接串口。</p></div>
+    <div class="note ok"><p>机器是 tcboot 引导，则看<a href="migrate-image.html">不拆机迁移 U-Boot 教程</a>。</p></div>
     <div class="steps">
       <div class="step"><span class="num"></span><div class="body">
         <h4>找到串口调试口，接好线</h4>
         <p>拆开机壳，主板上电解电容旁边有一排焊盘，标着 <code>Tx</code> <code>Rx</code> <code>GND</code>：</p>
-        <div class="shot"><img src="img/board-serial.jpg" loading="lazy" width="1056" height="858" alt="主板串口焊盘位置，红色箭头标出 Tx / Rx / GND"><div class="shot-cap">▲ 主板实拍，电解电容左侧就是调试串口</div></div>
+        <div class="box dl serial-shot">
+          <div class="head"><span class="seg" id="serial-model"><button aria-pressed="true" data-m="XG-040G-MD">XG-040G-MD</button><button aria-pressed="false" data-m="XG-040G-MF">XG-040G-MF</button><button aria-pressed="false" data-m="XG-040G-TF">XG-040G-TF</button><button aria-pressed="false" data-m="ZN504XG-D">ZN504XG-D</button></span></div>
+          <div class="pic">
+            <img id="serial-img" src="img/board-serial.jpg" loading="lazy" width="528" height="429" alt="XG-040G-MD 主板串口焊盘位置，红色箭头标出 Tx / Rx / GND">
+            <div class="shot-cap" id="serial-cap">▲ XG-040G-MD 主板实拍，电解电容左侧就是调试串口</div>
+            <div class="miss" id="serial-miss" hidden>该机型主板实拍尚未补上</div>
+          </div>
+        </div>
         <p>接线是「交叉」的——<b>模块的 TX 接主板的 Rx，模块的 RX 接主板的 Tx</b>，GND 接 GND。不同批次位置可能略有出入，以实物丝印为准：</p>
         <div class="diagram"><div class="wire-row">
           <div class="node"><div class="l1">电脑</div><div class="l2">USB 口</div></div>
@@ -383,8 +404,23 @@ Handing out DHCP leases from 192.168.1.1</div>
     <p>打不开？看<a href="#trouble">「出问题了」</a>第一条。</p>
   </section>
 
+  <section id="backup">
+    <div class="sec-head"><span class="ic i2"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg></span><h2><span class="no">2.3</span>原厂数据备份<span class="only">可选项</span></h2></div>
+    <p class="sec-sub">上两步只把引导送进内存，闪存还是原厂的。下一步勾「重建 UBI」会把原厂数据擦掉。想留退路，现在整片下一份。点下面任一步可以停在那一步看。</p>
+    <div class="stepper" id="backup-steps">
+      <button type="button" class="stp" data-k="0"><span class="dot"><span>1</span></span><span class="lb"><b>打开「备份下载」</b><small>左栏那一项；原厂没有 UBI，这是正常的</small></span></button>
+      <span class="arr" aria-hidden="true"><i></i></span>
+      <button type="button" class="stp" data-k="1"><span class="dot"><span>2</span></span><span class="lb"><b>切到「原始区段」</b><small>偏移留 <code>0x0</code>，长度留空</small></span></button>
+      <span class="arr" aria-hidden="true"><i></i></span>
+      <button type="button" class="stp" data-k="2"><span class="dot"><span>3</span></span><span class="lb"><b>点「整片下载」</b><small>得到 <code>all_flash.bin</code>，传完给出 crc32</small></span></button>
+    </div>
+    <div class="mock fixed"><div class="mock-bar"><i></i><i></i><i></i><span>192.168.1.1</span><button type="button" class="replay" id="backup-replay" hidden>▶ 自动演示</button></div><iframe title="备份下载演示：打开页面、原始区段、整片下载" data-state="demo-backup"></iframe></div>
+    <div class="note">跳过也可以。没有这份备份，就找不回这台机器自己的 MAC，也不能再整片刷回原厂。</div>
+  </section>
+
   <section id="web-migrate">
-    <div class="sec-head"><span class="ic i2"><svg viewBox="0 0 24 24"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg></span><h2><span class="no">2.3</span>网页写入三样</h2></div>
+    <div class="sec-head"><span class="ic i2"><svg viewBox="0 0 24 24"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg></span><h2><span class="no">2.4</span>网页写入三样</h2></div>
+    <p class="sec-sub">还没备份的先做<a href="#backup">2.3</a>。勾了「重建 UBI」再写，闪存就回不去了。</p>
     <div class="stepper" id="migrate-steps">
       <button type="button" class="stp" data-k="0"><span class="dot"><span>1</span></span><span class="lb"><b>选好三样，打开「重建 UBI」</b><small>BL2 <code>…-preloader.bin</code> · U-Boot <code>…-bl31-uboot.fip</code> · 固件 <code>…-squashfs-sysupgrade.itb</code></small></span></button>
       <span class="arr" aria-hidden="true"><i></i></span>
@@ -641,6 +677,7 @@ Handing out DHCP leases from 192.168.1.1</div>
     if(/-bl31-uboot\.fip$/.test(name))return{k:"U-Boot",h:"首次迁移 · xmodem 第 2 个；引导升级页「U-Boot」",r:2};
     if(/squashfs-sysupgrade\.itb$/.test(name))return{k:"固件",h:"「日常刷机」页那一格",r:3};
     if(/initramfs-recovery\.itb$/.test(name))return{k:"恢复固件",h:"「试跑固件」页那一格；串口 TFTP 救砖也是它",r:4};
+    if(/tcboot-to-ubi-uboot\.bin$/.test(name))return{k:"迁移镜像",h:"tcboot 不拆机迁移用的 U-Boot",r:5};
     return{k:"文件",h:"",r:9}}
   function render(){
     if(!cache){return}
@@ -656,6 +693,23 @@ Handing out DHCP leases from 192.168.1.1</div>
   Array.prototype.forEach.call(seg.querySelectorAll("button"),function(b){b.onclick=function(){Array.prototype.forEach.call(seg.querySelectorAll("button"),function(x){x.setAttribute("aria-pressed",x===b)});model=b.getAttribute("data-m");render()}});
   fetch(API,{headers:{"Accept":"application/vnd.github+json"}}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}).then(function(l){cache=l;render()})
     .catch(function(){box.innerHTML='<div class="err">没拉到文件列表，请到 <a href="https://github.com/Loong1996/ImmortalWrt-Airoha/releases" target="_blank" rel="noopener">Releases</a> 选标题以 <code>'+model+'-ubi-auto</code> 开头、正文写着目标分支 <code>master-airoha</code> 的那次，下载 <code>immortalwrt-</code> 开头的文件。</div>'});
+})();
+(function(){
+  // 2.1 主板串口实拍。MD 用现成的 img/board-serial.jpg；其它机型放
+  // img/board-serial-<机型>.jpg（如 img/board-serial-XG-040G-MF.jpg）就会出现。
+  var seg=document.getElementById("serial-model"),img=document.getElementById("serial-img"),
+      cap=document.getElementById("serial-cap"),miss=document.getElementById("serial-miss"),n=0;
+  function src(m){return m==="XG-040G-MD"?"img/board-serial.jpg":"img/board-serial-"+m+".jpg"}
+  function show(m){
+    var k=++n;
+    function ok(){if(k!==n)return;img.hidden=false;miss.hidden=true;cap.hidden=false;cap.textContent="▲ "+m+" 主板实拍，电解电容左侧就是调试串口"}
+    function no(){if(k!==n)return;img.hidden=true;cap.hidden=true;miss.hidden=false}
+    img.onload=ok;img.onerror=no;img.alt=m+" 主板串口焊盘位置";
+    img.src=src(m);
+    if(img.complete){img.naturalWidth?ok():no()}
+  }
+  Array.prototype.forEach.call(seg.querySelectorAll("button"),function(b){
+    b.onclick=function(){Array.prototype.forEach.call(seg.querySelectorAll("button"),function(x){x.setAttribute("aria-pressed",x===b)});show(b.getAttribute("data-m"))}});
 })();
 (function(){
   // ---- 页面示意：嵌的是真实的恢复页源码（1.0.0 的 page.html），/info、/check、/log 用假数据应答，
@@ -730,6 +784,26 @@ Handing out DHCP leases from 192.168.1.1</div>
     info:function(w,d){w.nav(d.querySelector("[data-p=p5]"))},
     check:function(w,d){w.nav(d.querySelector("[data-p=p8]"))},
     backup:function(w,d){w.nav(d.querySelector("[data-p=p10]"))},
+    "demo-backup":function(w,d){
+      function open(){if(w.INFO)w.INFO.ubi=null;try{w.banner()}catch(e){}
+        w.nav(d.querySelector("[data-p=p10]"))}
+      function raw(){open();var b=d.querySelector("#p10 button[data-s=s102]");if(b)w.seg(b)}
+      function go(){raw();d.getElementById("app").setAttribute("data-busy","");
+        var pg=d.getElementById("dlprog");pg.hidden=false;pg.className="prog";
+        var bar=pg.querySelector(".pbar");bar.className="pbar ind";bar.style.width="100%";
+        pg.querySelector(".pwhat").textContent="正在读取并传送 0x0 起的区段";
+        pg.querySelector(".pct").textContent="到片尾";
+        d.getElementById("dlwhy").hidden=false;
+        d.getElementById("dlh").textContent="正在读取并传送 0x0 起的区段（到片尾）…"}
+      function done(){raw();d.getElementById("app").removeAttribute("data-busy");
+        var pg=d.getElementById("dlprog");pg.hidden=false;pg.className="prog ok";
+        var bar=pg.querySelector(".pbar");bar.className="pbar";bar.style.width="100%";
+        pg.querySelector(".pwhat").textContent="传输完成";pg.querySelector(".pct").textContent="";
+        d.getElementById("dlwhy").hidden=true;d.getElementById("dllh").hidden=false;
+        d.getElementById("dll").innerHTML='<tr><td>0x0 起的区段</td><td class=n>256.0 MiB</td><td class="n mono">3f2a91c4</td></tr>';
+        d.getElementById("dlh").textContent="传输完成"}
+      demo(w,d,"backup",[open,raw,done],
+        [[0,open],[1,raw,2200],[2,go,5000],[3,done,9000]])},
     "demo-flash":function(w,d){demo(w,d,"flash",[
         function(){STATES.idle(w,d)},
         function(){STATES.idle(w,d);ask(d,"日常刷机",[["固件",F1]],["rootfs_data 将被清空；系统可正常启动时请使用 sysupgrade。"])},

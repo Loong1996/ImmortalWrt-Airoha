@@ -36,6 +36,10 @@ need "$GITHUB_WORKSPACE/guide/recovery-guide.html"
 need "$GITHUB_WORKSPACE/guide/migrate-image.html"
 need "$GITHUB_WORKSPACE/guide/img/board-serial.jpg"
 need "$GITHUB_WORKSPACE/guide/img/reward.jpg"
+need "$GITHUB_WORKSPACE/scripts/sync-models-table.py"
+
+# 门户机型表以教程 1.2 为准，发布前再拷一次，避免只改了一边
+python3 "$GITHUB_WORKSPACE/scripts/sync-models-table.py"
 
 GH="$RUNNER_TEMP/gh"
 REMOTE="https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git"
