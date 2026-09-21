@@ -90,7 +90,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 <div class="sec-head"><span class="n">01</span><h2>选两个文件</h2></div>
 <p>网页 U-Boot 的那两个文件，拖进来。</p>
 
-<div class="note"><p>Release 里按机型也直接给了 <code>tcboot-to-ubi-uboot.bin</code>，下好了就不用在这儿生成，直接跳到 02。</p></div>
+<div class="note"><p>Release 里按机型也直接给了 <code>…-tcboot-to-ubi-uboot.bin</code>，下好了就不用在这儿生成，直接跳到 02。</p></div>
 
 <div class="slots">
   <div class="slot" id="s-bl2">
@@ -111,12 +111,12 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
 <div class="row">
   <button class="pri" id="go" disabled>生成镜像</button>
-  <button id="dl" disabled>下载 tcboot-to-ubi-uboot.bin</button>
+  <button id="dl" disabled>下载镜像</button>
   <span id="status" style="color:var(--c2);font-size:.88rem"></span>
 </div>
 
 <div class="out" id="out" hidden>
-  <div class="hd"><span class="t">tcboot-to-ubi-uboot.bin</span><span class="sz" id="o-size"></span></div>
+  <div class="hd"><span class="t" id="o-name">tcboot-to-ubi-uboot.bin</span><span class="sz" id="o-size"></span></div>
   <table class="kv"><tbody id="o-kv"></tbody></table>
 </div>
 </section>
@@ -135,7 +135,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
     <p><span class="url">http://192.168.1.1/spinand.html</span></p>
   </div></div>
   <div class="step"><span class="num"></span><div class="body">
-    <h4>上传 <code>tcboot-to-ubi-uboot.bin</code></h4>
+    <h4>上传 <code>…-tcboot-to-ubi-uboot.bin</code></h4>
   </div></div>
   <div class="step"><span class="num"></span><div class="body">
     <h4>等它进网页 U-Boot</h4>
@@ -290,6 +290,8 @@ function num(n) { return n.toLocaleString('en-US'); }
 function $(id) { return document.getElementById(id); }
 
 var files = { bl2: null, fip: null };
+/* 和 sysupgrade.itb 等产物同前缀，按传进来的 preloader.bin 文件名推 */
+var OUTNAME = 'tcboot-to-ubi-uboot.bin';
 var LIMITS = {
   bl2: { max: BL2_PART - BL2_OFF, label: 'preloader.bin', hint: 'bl2 分区自 0x800 起只有 0x1F800' },
   fip: { max: 0x100000, label: 'bl31-uboot.fip', hint: 'fip 卷预留 0x100000' }
@@ -316,6 +318,9 @@ function setSlot(kind, file, bytes) {
   else if (dvv.getUint32(0, true) !== FIP_MAGIC) err = '开头不是 FIP 容器头（应为 01 00 64 aa），这不是 ' + lim.label + '。';
   else if (bytes.length > lim.max) err = '有 ' + num(bytes.length) + ' 字节，放不下 —— ' + lim.hint + '。';
 
+  if (kind === 'bl2') OUTNAME = /-preloader\.bin$/i.test(file.name)
+    ? file.name.replace(/-preloader\.bin$/i, '-tcboot-to-ubi-uboot.bin')
+    : 'tcboot-to-ubi-uboot.bin';
   window['_mn_' + kind] = model(file.name);
   var other = window['_mn_' + (kind === 'bl2' ? 'fip' : 'bl2')];
   if (!err && window['_mn_' + kind] && other && window['_mn_' + kind] !== other)
@@ -361,6 +366,8 @@ $('go').addEventListener('click', function () {
     var o = { seq: r[0], ec: DEF.ec, eof: DEF.eof, reserve: DEF.reserve };
     var b = build(files.bl2, files.fip, o), t = b.img.length;
 
+    $('o-name').textContent = OUTNAME;
+    $('dl').textContent = '下载 ' + OUTNAME;
     $('o-size').textContent = num(t) + ' 字节 · ' + kib(t);
     $('o-kv').innerHTML =
       '<tr><td>0x00800</td><td>preloader.bin</td></tr>' +
@@ -386,7 +393,7 @@ $('go').addEventListener('click', function () {
 $('dl').addEventListener('click', function () {
   if (!blobUrl) return;
   var a = document.createElement('a');
-  a.href = blobUrl; a.download = 'tcboot-to-ubi-uboot.bin';
+  a.href = blobUrl; a.download = OUTNAME;
   document.body.appendChild(a); a.click(); a.remove();
 });
 </script>

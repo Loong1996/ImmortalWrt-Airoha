@@ -870,7 +870,8 @@ jobs:
         "$UBINIZE" -o "$WORK/ubi.img" -p 128KiB -m 2048 \
           ${SOURCE_DATE_EPOCH:+-Q $SOURCE_DATE_EPOCH} "$WORK/fip.cfg"
 
-        MIGRATE="tcboot-to-ubi-uboot.bin"
+        # 和 sysupgrade.itb 等产物同前缀，一眼看得出是哪个机型的
+        MIGRATE="${BL2%-preloader.bin}-tcboot-to-ubi-uboot.bin"
         python3 - "$BL2" "$WORK/ubi.img" "$MIGRATE" <<'PY'
         import sys
         bl2_path, ubi_path, out_path = sys.argv[1:4]
@@ -971,7 +972,8 @@ jobs:
           echo "* 已经在跑网页 U-Boot：直接在恢复页「引导升级」里传这两个文件，"
           echo "  不要勾「重建 UBI」。"
           echo "* 机器刷的是第三方 tcboot 引导：不用拆机，用同目录下的"
-          echo "  tcboot-to-ubi-uboot.bin，走 tcboot 自带的 spinand 页整片写入。"
+          echo "  $MIGRATE，"
+          echo "  走 tcboot 自带的 spinand 页整片写入。"
           echo
           echo "提醒"
           echo "----"
