@@ -13,9 +13,9 @@ on:
         default: 'master-airoha'
         type: string
       device:
-        description: '机型（all：每个机型各起一个 job 并行编，stock 变体只编 MD 与 MF）'
+        description: '机型（默认 all：每个机型各起一个 job 并行编，stock 变体只编 MD 与 MF）'
         required: true
-        default: 'xg-040g-md'
+        default: 'all'
         type: choice
         options:
           - all

@@ -50,7 +50,7 @@ Partition map and flash method: [Device variants](docs/variants.md).
 This repo holds the build configs, bundled packages, web pages, and CI. Firmware source is the `master-airoha` branch of [Loong1996/immortalwrt](https://github.com/Loong1996/immortalwrt) (immortalwrt `master`, kernel 6.18). Device support and the U-Boot patches live in that tree.
 
 1. Fork this repo and enable Actions.
-2. `Actions → ImmortalWrt-Airoha → Run workflow`. Pick a model (`xg-040g-md` / `xg-040g-mf` / `xg-040g-tf` / `zn504xg-d`, or `all` to build every model in parallel) and a variant. Memory size defaults to [auto](docs/variants.md#内存容量). Leave it.
+2. `Actions → ImmortalWrt-Airoha → Run workflow`. The model defaults to `all` (every model in parallel). A single model is `xg-040g-md` / `xg-040g-mf` / `xg-040g-tf` / `zn504xg-d`. Then pick a variant. Memory size defaults to [auto](docs/variants.md#内存容量). Leave it.
 3. Firmware is ready in about 1–2 hours. Where it goes depends on the publish mode:
    - `auto` (default): a `master-airoha` build on `main` is published to this repo's Releases. Other branches upload an Artifact only.
    - `prerelease`: a Release marked pre-release. It does not replace Latest, and it does not show up in the guide's download list.
