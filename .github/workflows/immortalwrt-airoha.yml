@@ -929,6 +929,21 @@ jobs:
         fi
         rm -rf "$WORK"
 
+        # zip 的中文文件名要带 UTF-8 标志位（EFS，bit 11），否则 Windows 上解出来
+        # 是乱码。Info-ZIP 要看编译时有没有 UNICODE_SUPPORT，不同发行版不一样；
+        # python 的 zipfile 对非 ASCII 名字一定会置这个位，用它稳。
+        mkzip() {
+          python3 - "$1" <<'PYZIP'
+        import os, sys, zipfile
+        root = sys.argv[1]
+        with zipfile.ZipFile(root + '.zip', 'w', zipfile.ZIP_DEFLATED) as z:
+            for dirpath, _, files in os.walk(root):
+                for f in sorted(files):
+                    p = os.path.join(dirpath, f)
+                    z.write(p, p)
+        PYZIP
+        }
+
         # ---------------------------------------------------------------
         # 二、引导程序 zip：两个引导文件 + 一份链接说明
         # ---------------------------------------------------------------
@@ -972,18 +987,100 @@ jobs:
           echo "* 已经在跑网页 U-Boot：直接在恢复页「引导升级」里传这两个文件，"
           echo "  不要勾「重建 UBI」。"
           echo "* 机器刷的是第三方 tcboot 引导：不用拆机，用同目录下的"
-          echo "  $MIGRATE，"
+          echo "  ${MIGRATE}，"
           echo "  走 tcboot 自带的 spinand 页整片写入。"
           echo
           echo "提醒"
           echo "----"
           echo "* 首次迁移勾「重建 UBI」会擦掉出厂 MAC（ri 卷）。刷之前先按指南把原厂"
           echo "  备份做出来，迁完在恢复页「出厂卷」里把 ri 写回去就能找回来。"
-          echo "* 引导文件按机型编译，不要跨机型刷。本包对应 $MODEL_TAG。"
+          echo "* 引导文件按机型编译，不要跨机型刷。本包对应 ${MODEL_TAG}。"
         } > "$KIT/教程链接.txt"
 
-        zip -qr "$KIT.zip" "$KIT"
+        mkzip "$KIT"
         rm -rf "$KIT"
+
+        # ---------------------------------------------------------------
+        # 三、分享包：一个 zip 装齐刷一台机器要用的全部文件
+        #
+        # 只在发 Release 时打。Release 的附件是一个个散着的，群里要发一整套
+        # 得挑半天；只传 Artifact 那条路本来就把整个目录打成一个 zip，再套
+        # 一层纯属重复，还要多传三四十兆。
+        # ---------------------------------------------------------------
+        if [ "${PUBLISH_RELEASE:-false}" = "true" ]; then
+          PACK="$RELEASE_TAG"
+          mkdir -p "$PACK"
+          for f in "$BL2" "$FIP" "$MIGRATE" \
+                   *-initramfs-recovery.itb *-squashfs-sysupgrade.itb *.manifest ; do
+            [ -e "$f" ] && cp "$f" "$PACK/"
+          done
+
+          REL="https://github.com/$GITHUB_REPOSITORY/releases/tag/$RELEASE_TAG"
+          {
+            echo "$MODEL_TAG · $RELEASE_TAG"
+            echo "=================================================================="
+            echo "变体     : $VARIANT_LABEL"
+            echo "内存     : $DRAM_LABEL"
+            echo "内核     : $VERSION_KERNEL"
+            echo "编译分支 : $REPO_BRANCH"
+            echo "编译时间 : $DATE"
+            echo
+            echo "链接"
+            echo "----"
+            echo "  本次 Release       $REL"
+            echo "  恩山论坛           https://www.right.com.cn/forum/thread-8487590-1-1.html"
+            echo "  Github 工程        https://github.com/Loong1996/ImmortalWrt-Airoha"
+            echo "  刷机教程           https://loong1996.github.io/ImmortalWrt-Airoha/recovery-guide.html"
+            echo "  tcboot 不拆机迁移  https://loong1996.github.io/ImmortalWrt-Airoha/migrate-image.html"
+            echo "  工具入口（选包）   https://loong1996.github.io/ImmortalWrt-Airoha/"
+            echo "  QQ 群              1092754041"
+            echo
+            echo "包里是什么"
+            echo "----------"
+            echo "  $BL2"
+            echo "      BL2（preloader）。BootROM 收进片上 SRAM，由它初始化 DDR。"
+            echo "  $FIP"
+            echo "      BL31 + U-Boot，带网页救砖界面。BL2 收进 DRAM。"
+            echo "  $MIGRATE"
+            echo "      刷了第三方 tcboot 引导的机器专用，不拆机迁移到网页 U-Boot。"
+            echo "      见上面「tcboot 不拆机迁移」。原厂引导的机器用不到这个。"
+            for f in *-initramfs-recovery.itb ; do
+              [ -e "$f" ] || continue
+              echo "  $f"
+              echo "      内存中运行的救援系统，不写闪存。系统刷坏时从 U-Boot 载入它救场。"
+            done
+            for f in *-squashfs-sysupgrade.itb ; do
+              [ -e "$f" ] || continue
+              echo "  $f"
+              echo "      固件本体。日常刷机、首刷都传这个。"
+            done
+            for f in *.manifest ; do
+              [ -e "$f" ] || continue
+              echo "  $f"
+              echo "      本固件实际安装的完整软件包列表与版本。"
+            done
+            echo
+            echo "先刷哪个"
+            echo "--------"
+            echo "* 机器还是原厂引导：接一次 USB-TTL 串口，按教程第 2 章传 BL2 与 U-Boot，"
+            echo "  之后全在网页里，再也不用串口。"
+            echo "* 机器刷的是第三方 tcboot：不用拆机，直接用 ${MIGRATE}，"
+            echo "  走 tcboot 自带的 spinand 页整片写入。"
+            echo "* 已经在跑网页 U-Boot：浏览器进恢复页，「日常刷机」传固件即可。"
+            echo
+            echo "提醒"
+            echo "----"
+            echo "* 引导文件按机型编译，不要跨机型刷。本包对应 ${MODEL_TAG}。"
+            echo "* 首次迁移勾「重建 UBI」会擦掉出厂 MAC（ri 卷），刷之前先按教程备份原厂。"
+          } > "$PACK/说明与链接.txt"
+
+          mkzip "$PACK"
+          rm -rf "$PACK"
+          ls -l "$PACK.zip"
+          echo "- \`$PACK.zip\` — 分享包，刷一台机器要用的文件都在里面" >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "::notice::只传 Artifact，整个目录本来就是一个 zip，不再打分享包"
+        fi
 
         ls -l "$MIGRATE" "$KIT.zip"
         {
