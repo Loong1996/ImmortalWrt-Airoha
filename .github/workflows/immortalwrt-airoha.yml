@@ -1146,11 +1146,10 @@ jobs:
           ### 🔖 软件包版本覆盖
           ${{ env.PKG_VER_NOTE }}
           - 由仓库里的 `config/pkg-versions.txt` 控制，编译前改写 feed 的 `PKG_VERSION` 并自动重算 `PKG_HASH`
-          ### ✂️ 默认不带代理与去广告
-          - Passwall / OpenClash / AdGuardHome / SmartDNS 都不在默认固件里 —— 它们很个人化，且占了原固件八成体积
-          - 需要就去选包页勾，重编一次即可。要搜：`luci-app-passwall` `xray-core` `sing-box` `geoview` / `luci-app-openclash` `ruby` `ruby-yaml` / `luci-app-adguardhome` `adguardhome` / `smartdns` `luci-app-smartdns`
-          - 引擎得单独勾：passwall 的引擎靠它自己的 `INCLUDE_*` 子选项带，那不是包名，选包页列不出来
-          - `kmod-nft-tproxy` 与 `kmod-tun` 已保留，所以加回代理时不必为内核模块重来一次
+
+          ☕ 业余维护，开源不收费。觉得有用就 **点个 Star**，或请作者喝杯咖啡：
+
+          <img src="https://raw.githubusercontent.com/Loong1996/ImmortalWrt-Airoha/main/guide/img/reward.jpg" width="180" alt="Loong 的赞赏码">
 
     - name: Publish Pages Site(发布门户与选包页)
       if: steps.compile.outputs.status == 'success'
