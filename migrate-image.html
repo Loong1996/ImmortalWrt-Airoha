@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tcboot 不拆机迁移网页 U-Boot 工具与教程</title>
+<meta name="description" content="刷了第三方 tcboot 引导的 Airoha 光猫不拆机换成网页 U-Boot：浏览器里把 preloader.bin 与 bl31-uboot.fip 拼成迁移镜像，走 tcboot 自带的 spinand 页整片写入">
+<style>
+:root{--bg:#f5f5f7;--card:#fff;--fg:#1d1d1f;--c2:#6e6e73;--c3:#aeaeb2;--sep:rgba(60,60,67,.16);--blue:#0a66d6;--red:#d9342b;--org:#b8500f;--grn:#1f8a3b;--fill:#e8e8ed;--btn:#fff;--btnb:rgba(0,0,0,.14)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1e1e20;--card:#2a2a2d;--fg:#f5f5f7;--c2:#a1a1a6;--c3:#6e6e73;--sep:rgba(255,255,255,.1);--blue:#2f7ff2;--red:#ff5f57;--org:#f0a04a;--grn:#4cd964;--fill:#3a3a3d;--btn:#3a3a3d;--btnb:rgba(255,255,255,.14)}}
+:root[data-theme=dark]{--bg:#1e1e20;--card:#2a2a2d;--fg:#f5f5f7;--c2:#a1a1a6;--c3:#6e6e73;--sep:rgba(255,255,255,.1);--blue:#2f7ff2;--red:#ff5f57;--org:#f0a04a;--grn:#4cd964;--fill:#3a3a3d;--btn:#3a3a3d;--btnb:rgba(255,255,255,.14)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.65 -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding-inline:16px;padding-block:2rem 4rem}
+a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.92em;background:var(--fill);border-radius:4px;padding:.05em .35em}
+svg{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+h1{font-size:1.6rem;font-weight:700;letter-spacing:-.015em;margin:0 0 .35rem;text-wrap:balance}
+.lede{color:var(--c2);margin:0 0 1.6rem;max-width:56ch}
+.back{color:var(--c2);font-size:.85rem;display:inline-flex;align-items:center;gap:.35rem;margin-bottom:1.1rem}
+section{margin-top:2.2rem}
+.sec-head{display:flex;align-items:baseline;gap:.6rem;margin-bottom:.8rem}
+.sec-head .n{font:600 .8rem/1 ui-monospace,Menlo,monospace;color:var(--blue);letter-spacing:.06em;flex:none}
+.sec-head h2{font-size:1.2rem;font-weight:700;letter-spacing:-.01em;margin:0}
+p{margin:.5rem 0}
+.note{background:var(--card);border:1px solid var(--sep);border-left:3px solid var(--blue);border-radius:9px;padding:.7rem .95rem;margin:.8rem 0;color:var(--c2)}
+.note b{color:var(--fg)}
+.note.warn{border-left-color:var(--org)}.note.warn b{color:var(--org)}
+.note.danger{border-left-color:var(--red)}.note.danger b{color:var(--red)}
+.note>:first-child{margin-top:0}.note>:last-child{margin-bottom:0}
+
+.slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.8rem;margin:.9rem 0}
+.slot{background:var(--card);border:1px solid var(--sep);border-radius:11px;padding:.9rem 1rem;display:flex;flex-direction:column;gap:.45rem;position:relative;transition:border-color .12s}
+.slot .t{font-weight:600}
+.slot .d{color:var(--c2);font-size:.86rem}
+.slot .drop{border:1.5px dashed var(--btnb);border-radius:8px;padding:.75rem;text-align:center;color:var(--c3);font-size:.86rem;cursor:pointer;transition:border-color .12s,color .12s,background .12s}
+.slot .drop:hover,.slot .drop:focus-visible{border-color:var(--blue);color:var(--blue);outline:none}
+.slot.over{border-color:var(--blue)}
+.slot.over .drop{border-color:var(--blue);color:var(--blue);background:color-mix(in srgb,var(--blue) 8%,transparent)}
+.slot.ok{border-color:color-mix(in srgb,var(--grn) 55%,var(--sep))}
+.slot.bad{border-color:color-mix(in srgb,var(--red) 55%,var(--sep))}
+.slot .file{display:flex;align-items:baseline;gap:.5rem;font-size:.86rem;min-width:0}
+.slot .file .nm{font-family:ui-monospace,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.slot .file .sz{color:var(--c2);flex:none;font-variant-numeric:tabular-nums}
+.slot .msg{font-size:.84rem}
+.slot .msg.e{color:var(--red)}.slot .msg.g{color:var(--grn)}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+.row{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1rem 0}
+button{font:inherit;font-weight:500;border-radius:8px;border:1px solid var(--btnb);background:var(--btn);color:var(--fg);padding:.45rem 1rem;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--blue);color:var(--blue)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.pri{background:var(--blue);border-color:var(--blue);color:#fff}
+button.pri:hover:not(:disabled){filter:brightness(1.1);color:#fff}
+button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+.out{background:var(--card);border:1px solid var(--sep);border-radius:11px;overflow:hidden;margin:.9rem 0}
+.out .hd{padding:.7rem .95rem;border-bottom:1px solid var(--sep);display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
+.out .hd .t{font-weight:600}
+.out .hd .sz{color:var(--c2);font-variant-numeric:tabular-nums;font-size:.88rem}
+.kv{width:100%;border-collapse:collapse;font-size:.87rem}
+.kv td{padding:.42rem .95rem;border-top:1px solid var(--sep);vertical-align:top}
+.kv tr:first-child td{border-top:0}
+.kv td:first-child{color:var(--c2);white-space:nowrap;width:1%;font-family:ui-monospace,Menlo,monospace}
+.kv .hash{font-family:ui-monospace,Menlo,monospace;word-break:break-all;font-size:.82rem}
+
+.steps{counter-reset:s;margin:.4rem 0}
+.step{display:grid;grid-template-columns:30px minmax(0,1fr);gap:.8rem;padding:.85rem 0;border-top:1px solid var(--sep)}
+.step:first-child{border-top:0}
+.step .num{counter-increment:s;width:26px;height:26px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:.85rem;flex:none}
+.step .num::before{content:counter(s)}
+.step h4{margin:.1rem 0 .3rem;font-size:.98rem;font-weight:600}
+.step .body>:first-child{margin-top:0}.step .body>:last-child{margin-bottom:0}
+.url{display:inline-block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.95rem;background:var(--fill);border-radius:7px;padding:.3rem .7rem;margin:.2rem 0;word-break:break-all}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<a class="back" href="recovery-guide.html"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>返回网页 U-Boot 指南</a>
+
+<h1>tcboot 不拆机迁移网页 U-Boot 工具与教程</h1>
+<p class="lede">刷了第三方 tcboot 引导的机器换成网页 U-Boot，不用拆机、不用串口。</p>
+
+<div class="note warn"><p><b>只给刷了 tcboot 的机器用。</b>原厂引导走串口首刷，已经在跑网页 U-Boot 的走「引导升级」。</p></div>
+
+<section>
+<div class="sec-head"><span class="n">01</span><h2>选两个文件</h2></div>
+<p>网页 U-Boot 的那两个文件，拖进来。</p>
+
+<div class="note"><p>Release 里按机型也直接给了 <code>tcboot-to-ubi-uboot.bin</code>，下好了就不用在这儿生成，直接跳到 02。</p></div>
+
+<div class="slots">
+  <div class="slot" id="s-bl2">
+    <span class="t">preloader.bin</span>
+    <span class="d">BL2</span>
+    <div class="drop" id="d-bl2" tabindex="0" role="button" aria-label="选择 preloader.bin">拖进来，或点击选择</div>
+    <input type="file" id="f-bl2" accept=".bin">
+    <div class="msg" id="m-bl2"></div>
+  </div>
+  <div class="slot" id="s-fip">
+    <span class="t">bl31-uboot.fip</span>
+    <span class="d">BL31 + U-Boot</span>
+    <div class="drop" id="d-fip" tabindex="0" role="button" aria-label="选择 bl31-uboot.fip">拖进来，或点击选择</div>
+    <input type="file" id="f-fip" accept=".fip,.bin">
+    <div class="msg" id="m-fip"></div>
+  </div>
+</div>
+
+<div class="row">
+  <button class="pri" id="go" disabled>生成镜像</button>
+  <button id="dl" disabled>下载 tcboot-to-ubi-uboot.bin</button>
+  <span id="status" style="color:var(--c2);font-size:.88rem"></span>
+</div>
+
+<div class="out" id="out" hidden>
+  <div class="hd"><span class="t">tcboot-to-ubi-uboot.bin</span><span class="sz" id="o-size"></span></div>
+  <table class="kv"><tbody id="o-kv"></tbody></table>
+</div>
+</section>
+
+<section>
+<div class="sec-head"><span class="n">02</span><h2>刷进去</h2></div>
+
+<div class="note danger"><p><b>写入中断电 = 硬砖，只能接串口救。</b>插稳电源，别碰网线。</p></div>
+
+<div class="steps">
+  <div class="step"><span class="num"></span><div class="body">
+    <h4>按 tcboot 的刷机流程进恢复模式</h4>
+  </div></div>
+  <div class="step"><span class="num"></span><div class="body">
+    <h4>浏览器打开</h4>
+    <p><span class="url">http://192.168.1.1/spinand.html</span></p>
+  </div></div>
+  <div class="step"><span class="num"></span><div class="body">
+    <h4>上传 <code>tcboot-to-ubi-uboot.bin</code></h4>
+  </div></div>
+  <div class="step"><span class="num"></span><div class="body">
+    <h4>等它进网页 U-Boot</h4>
+    <p>刷写成功后会自动进入网页 U-Boot，面板灯呈流水效果。几分钟都没有流水效果的话，断电重新上电。</p>
+    <p>进去之后停在救砖界面是正常的 —— 还没刷固件。</p>
+    <p style="color:var(--c2);font-size:.88rem">接了串口的话，这一次开机会刷一屏 <code>UBI: Bad EC magic</code>，是正常的，第二次开机就没有了。</p>
+  </div></div>
+  <div class="step"><span class="num"></span><div class="body">
+    <h4>刷固件</h4>
+    <p>在网页 U-Boot 里选「日常刷机」，上传固件刷机即可。</p>
+    <p style="color:var(--c2);font-size:.88rem">详见<a href="recovery-guide.html#web-use">网页 U-Boot 指南 · 3.3 日常刷机</a>。</p>
+  </div></div>
+</div>
+
+</section>
+
+</div>
+
+<script>
+'use strict';
+
+/* ---------- CRC32：UBI 口味，初值 0xFFFFFFFF，末尾不取反 ---------- */
+var CRCT = (function () {
+  var t = new Uint32Array(256), i, k, c;
+  for (i = 0; i < 256; i++) {
+    c = i;
+    for (k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[i] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(buf, off, len, init) {
+  var c = (init === undefined ? 0xFFFFFFFF : init) >>> 0, i, e = off + len;
+  for (i = off; i < e; i++) c = (CRCT[(c ^ buf[i]) & 0xff] ^ (c >>> 8)) >>> 0;
+  return c >>> 0;
+}
+
+/* ---------- 几何：BLOCKSIZE := 128k / PAGESIZE := 2048 ---------- */
+var PEB = 128 * 1024;
+var VID_OFF = 2048;
+var LEB_START = 4096;
+var LEB = PEB - LEB_START;       // 126976
+var VTBL_REC = 172;
+var MAX_VOL = Math.min(Math.floor(LEB / VTBL_REC), 128);
+
+var BL2_PART = 0x20000;          // bl2 分区 0x0-0x20000
+var BL2_OFF = 0x800;             // BootROM 在这里找 FIP 头
+var FIP_MAGIC = 0xAA640001;      // 盘上小端：01 00 64 aa
+
+var LAYOUT_ID = 0x7FFFEFFF;
+var VID_DYNAMIC = 1, VID_STATIC = 2, COMPAT_REJECT = 5;
+/*
+ * 不写 EOF 标记块（ubinize 的 -E）。那是给 BL2 提前结束扫描用的优化，
+ * 在这里是陷阱：UBI 改卷表是换一个 PEB 重写、再放掉旧的，所以首次启动
+ * 跑完 _init_env 建出 ubootenv 之后，卷表就搬到标记块后面去了。下次上电
+ * BL2 扫到标记停手，卷表在范围外，报 No volume named fip —— 只能接串口。
+ * 正常迁移出来的机器（ubi_format 建的 UBI）本来也没有标记，全片扫。
+ */
+var DEF = { seq: 0, ec: 0, eof: 0, reserve: 0x100000 };
+
+function ecHdr(u8, dv, off, ec, seq, eof) {
+  u8.fill(0, off, off + 64);
+  dv.setUint32(off, 0x55424923);                 // "UBI#"
+  u8[off + 4] = 1;
+  if (eof) { u8[off + 5] = 0x45; u8[off + 6] = 0x4F; u8[off + 7] = 0x46; }
+  dv.setUint32(off + 8, Math.floor(ec / 4294967296));
+  dv.setUint32(off + 12, ec >>> 0);
+  dv.setUint32(off + 16, VID_OFF);
+  dv.setUint32(off + 20, LEB_START);
+  dv.setUint32(off + 24, seq >>> 0);
+  dv.setUint32(off + 60, crc32(u8, off, 60));
+}
+
+function vidHdr(u8, dv, off, v, lnum, dataOff, dataLen) {
+  u8.fill(0, off, off + 64);
+  dv.setUint32(off, 0x55424921);                 // "UBI!"
+  u8[off + 4] = 1;
+  u8[off + 5] = v.type;
+  u8[off + 7] = v.compat || 0;
+  dv.setUint32(off + 8, v.id);
+  dv.setUint32(off + 12, lnum);
+  if (v.type === VID_STATIC) {
+    dv.setUint32(off + 20, dataLen);                     // data_size
+    dv.setUint32(off + 24, v.usedEbs);                   // used_ebs
+    dv.setUint32(off + 32, crc32(u8, dataOff, dataLen)); // data_crc
+  }
+  dv.setUint32(off + 28, v.dataPad || 0);
+  dv.setUint32(off + 60, crc32(u8, off, 60));
+}
+
+function vtblRec(u8, dv, off, v) {
+  u8.fill(0, off, off + VTBL_REC);
+  if (v) {
+    dv.setUint32(off, v.reservedPebs);
+    dv.setUint32(off + 4, v.alignment);
+    dv.setUint32(off + 8, v.dataPad);
+    u8[off + 12] = v.type;
+    dv.setUint16(off + 14, v.name.length);
+    for (var i = 0; i < v.name.length; i++) u8[off + 16 + i] = v.name.charCodeAt(i);
+  }
+  dv.setUint32(off + 168, crc32(u8, off, 168));
+}
+
+/*
+ * 0x00000  0xff × 0x800     BootROM 在 0x800 找 FIP 头
+ * 0x00800  preloader.bin    BL2
+ * 0x20000  UBI 镜像         PEB 0/1 卷表，之后是 static 卷 fip
+ */
+function build(bl2, fip, opt) {
+  opt = opt || DEF;
+  var usedEbs = Math.ceil(fip.length / LEB);
+  var eofN = opt.eof;
+  var pebs = 2 + usedEbs + eofN;
+
+  var img = new Uint8Array(BL2_PART + pebs * PEB).fill(0xFF);
+  var dv = new DataView(img.buffer);
+  img.set(bl2, BL2_OFF);
+
+  var base = BL2_PART;
+  var peb = function (n) { return base + n * PEB; };
+
+  var fipVol = {
+    id: 0, name: 'fip', type: VID_STATIC, compat: 0,
+    alignment: 1, dataPad: 0, usedEbs: usedEbs,
+    reservedPebs: Math.ceil(opt.reserve / LEB)
+  };
+  var layout = { id: LAYOUT_ID, type: VID_DYNAMIC, compat: COMPAT_REJECT, alignment: 1, dataPad: 0 };
+
+  /* 数据卷从 PEB 2 起，PEB 0/1 留给卷表 */
+  var n = 2, left = fip.length, src = 0, lnum = 0;
+  while (left > 0) {
+    var len = Math.min(left, LEB), o = peb(n);
+    ecHdr(img, dv, o, opt.ec, opt.seq, false);
+    img.set(fip.subarray(src, src + len), o + LEB_START);
+    vidHdr(img, dv, o + VID_OFF, fipVol, lnum, o + LEB_START, len);
+    src += len; left -= len; lnum++; n++;
+  }
+  for (var i = 0; i < eofN; i++) { ecHdr(img, dv, peb(n), opt.ec, opt.seq, true); n++; }
+  for (var c = 0; c < 2; c++) {
+    var lo = peb(c);
+    ecHdr(img, dv, lo, opt.ec, opt.seq, false);
+    var v = lo + LEB_START;
+    for (var r = 0; r < MAX_VOL; r++) vtblRec(img, dv, v + r * VTBL_REC, r === fipVol.id ? fipVol : null);
+    vidHdr(img, dv, lo + VID_OFF, layout, c, 0, 0);
+  }
+  return { img: img, usedEbs: usedEbs, eof: eofN, pebs: pebs };
+}
+
+/* ---------- 界面 ---------- */
+function kib(n) { return n >= 1048576 ? (n / 1048576).toFixed(2) + ' MiB' : (n / 1024).toFixed(1) + ' KiB'; }
+function num(n) { return n.toLocaleString('en-US'); }
+function $(id) { return document.getElementById(id); }
+
+var files = { bl2: null, fip: null };
+var LIMITS = {
+  bl2: { max: BL2_PART - BL2_OFF, label: 'preloader.bin', hint: 'bl2 分区自 0x800 起只有 0x1F800' },
+  fip: { max: 0x100000, label: 'bl31-uboot.fip', hint: 'fip 卷预留 0x100000' }
+};
+
+function model(name) {
+  var m = /an758\d-([a-z0-9_\-]+?)-(?:ubi-)?(?:preloader|bl31-uboot)/i.exec(name);
+  return m ? m[1].toLowerCase() : null;
+}
+
+function setSlot(kind, file, bytes) {
+  var slot = $('s-' + kind), msg = $('m-' + kind), drop = $('d-' + kind), lim = LIMITS[kind];
+  slot.classList.remove('ok', 'bad');
+
+  drop.innerHTML = '';
+  var wrap = document.createElement('div'); wrap.className = 'file';
+  var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = file.name;
+  var sz = document.createElement('span'); sz.className = 'sz'; sz.textContent = num(bytes.length) + ' B';
+  wrap.appendChild(nm); wrap.appendChild(sz); drop.appendChild(wrap);
+
+  var dvv = new DataView(bytes.buffer, bytes.byteOffset);
+  var err = null;
+  if (bytes.length < 64) err = '文件太小，不像是引导文件。';
+  else if (dvv.getUint32(0, true) !== FIP_MAGIC) err = '开头不是 FIP 容器头（应为 01 00 64 aa），这不是 ' + lim.label + '。';
+  else if (bytes.length > lim.max) err = '有 ' + num(bytes.length) + ' 字节，放不下 —— ' + lim.hint + '。';
+
+  window['_mn_' + kind] = model(file.name);
+  var other = window['_mn_' + (kind === 'bl2' ? 'fip' : 'bl2')];
+  if (!err && window['_mn_' + kind] && other && window['_mn_' + kind] !== other)
+    err = '机型对不上：这个是 ' + window['_mn_' + kind] + '，另一个是 ' + other + '。';
+
+  if (err) { files[kind] = null; slot.classList.add('bad'); msg.className = 'msg e'; msg.textContent = err; }
+  else { files[kind] = bytes; slot.classList.add('ok'); msg.className = 'msg g'; msg.textContent = '✓ ' + kib(bytes.length); }
+  refresh();
+}
+
+function wire(kind) {
+  var drop = $('d-' + kind), inp = $('f-' + kind), slot = $('s-' + kind);
+  var take = function (f) {
+    if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () { setSlot(kind, f, new Uint8Array(rd.result)); };
+    rd.readAsArrayBuffer(f);
+  };
+  drop.addEventListener('click', function () { inp.click(); });
+  drop.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } });
+  inp.addEventListener('change', function () { take(inp.files[0]); });
+  ['dragenter', 'dragover'].forEach(function (t) {
+    slot.addEventListener(t, function (e) { e.preventDefault(); slot.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (t) {
+    slot.addEventListener(t, function (e) { e.preventDefault(); slot.classList.remove('over'); });
+  });
+  slot.addEventListener('drop', function (e) { take(e.dataTransfer.files[0]); });
+}
+wire('bl2'); wire('fip');
+
+var blobUrl = null;
+function refresh() {
+  $('go').disabled = !(files.bl2 && files.fip);
+  if ($('go').disabled) { $('dl').disabled = true; $('status').textContent = ''; }
+}
+
+$('go').addEventListener('click', function () {
+  if (!(files.bl2 && files.fip)) return;
+  $('status').textContent = '生成中…';
+  setTimeout(function () {
+    var r = new Uint32Array(1); crypto.getRandomValues(r);
+    var o = { seq: r[0], ec: DEF.ec, eof: DEF.eof, reserve: DEF.reserve };
+    var b = build(files.bl2, files.fip, o), t = b.img.length;
+
+    $('o-size').textContent = num(t) + ' 字节 · ' + kib(t);
+    $('o-kv').innerHTML =
+      '<tr><td>0x00800</td><td>preloader.bin</td></tr>' +
+      '<tr><td>0x20000</td><td>UBI 卷表</td></tr>' +
+      '<tr><td>0x60000</td><td><code>fip</code> 卷（bl31-uboot.fip）</td></tr>';
+
+    crypto.subtle.digest('SHA-256', b.img).then(function (h) {
+      var hx = Array.prototype.map.call(new Uint8Array(h), function (x) {
+        return ('0' + x.toString(16)).slice(-2);
+      }).join('');
+      $('o-kv').insertAdjacentHTML('beforeend',
+        '<tr><td>SHA-256</td><td class="hash">' + hx + '</td></tr>');
+    });
+
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    blobUrl = URL.createObjectURL(new Blob([b.img], { type: 'application/octet-stream' }));
+    $('out').hidden = false;
+    $('dl').disabled = false;
+    $('status').textContent = '好了。';
+  }, 10);
+});
+
+$('dl').addEventListener('click', function () {
+  if (!blobUrl) return;
+  var a = document.createElement('a');
+  a.href = blobUrl; a.download = 'tcboot-to-ubi-uboot.bin';
+  document.body.appendChild(a); a.click(); a.remove();
+});
+</script>
+</body>
+</html>
