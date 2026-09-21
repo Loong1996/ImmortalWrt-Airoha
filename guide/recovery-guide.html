@@ -98,15 +98,15 @@ p{margin:.5rem 0}
 @keyframes blink{to{background:#34c759;box-shadow:0 0 6px #34c759}}
 .led-card .cap{font-weight:600}.led-card .sub{color:var(--c2);font-size:.85rem}
 .dl{margin:.4rem 0}
-.dl .head{display:flex;justify-content:space-between;align-items:center;padding:.5rem .9rem;border-bottom:1px solid var(--sep);font-weight:600}
+.dl .head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;padding:.5rem .9rem;border-bottom:1px solid var(--sep);font-weight:600}
 .dl .head .pb{font-weight:500}
 .dl .row{display:grid;grid-template-columns:5rem minmax(0,1fr) auto;gap:.8rem;align-items:center;padding:.5rem .9rem;border-top:1px solid var(--sep);color:inherit}
 .dl .row:first-of-type{border-top:0}.dl .row:hover{background:var(--fill);text-decoration:none}
 .dl .role{font-size:.78rem;font-weight:600;color:var(--blue)}.dl .name{font-family:ui-monospace,Menlo,monospace;font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dl .hint{display:block;color:var(--c3);font:.78rem/1.3 -apple-system,sans-serif}.dl .sz{color:var(--c2);font-variant-numeric:tabular-nums;font-size:.85rem}
 .dl .err{padding:.8rem .9rem;color:var(--c2)}
-.seg{display:inline-flex;background:var(--fill);border-radius:7px;padding:2px}
-.seg button{border:0;background:transparent;font:inherit;font-weight:500;color:var(--fg);padding:.15rem .8rem;border-radius:5px;cursor:pointer}
+.seg{display:inline-flex;flex-wrap:wrap;background:var(--fill);border-radius:7px;padding:2px;gap:2px}
+.seg button{border:0;background:transparent;font:inherit;font-weight:500;color:var(--fg);padding:.15rem .65rem;border-radius:5px;cursor:pointer}
 .seg button[aria-pressed=true]{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .pb{border:1px solid var(--btnb);background:var(--btn);color:var(--fg);border-radius:6px;font:inherit;font-size:.86rem;padding:.15rem .7rem;cursor:pointer}
 .check{list-style:none;padding:0;margin:.5rem 0}
@@ -258,10 +258,10 @@ details.ver .nw{padding:0 .95rem .95rem;margin:0}
     <div class="badges"><span class="badge ver">对应恢复页 1.0.0</span><span class="badge">仅适用 ubi 变体</span><a class="badge" href="#models">支持机型 ↓</a></div>
     <a class="star" href="https://github.com/Loong1996/ImmortalWrt-Airoha" target="_blank" rel="noopener"><span class="s">★</span><span class="t">这个 U-Boot 和恢复页都是业余时间做的，全部开源、没有任何收费。<b>觉得有用的话，去 GitHub 点个 Star</b>——这是对作者最好的支持。</span><span class="go">Loong1996/ImmortalWrt-Airoha →</span></a>
     <div class="decide" id="decide">
-      <a class="dcard" href="#serial"><span class="k">第 2 章</span><span class="t">机器现在是原厂 / tcboot</span><span class="d">从没刷过这个 U-Boot，想第一次换过来。需要一次性接串口，之后再也不用；刷过 tcboot 的机器不用拆机。</span><span class="go">从「2 首次迁移」开始 →</span></a>
+      <a class="dcard" href="#serial"><span class="k">第 2 章</span><span class="t">机器现在是原厂</span><span class="d">从没刷过这个 U-Boot，想第一次换过来。需要一次性接串口，之后再也不用。</span><span class="go">从「2 首次迁移」开始 →</span></a>
+      <a class="dcard" href="migrate-image.html"><span class="k">不拆机</span><span class="t">机器刷的是第三方 tcboot</span><span class="d">不用拆机、不用串口，用迁移镜像走 tcboot 自带的 spinand 页整片写入。</span><span class="go">去「不拆机迁移」→</span></a>
       <a class="dcard" href="#enter"><span class="k">第 3 章</span><span class="t">已经是这个 U-Boot 了</span><span class="d">系统起不来要救砖，或只是想升级固件 / 引导。全程只要浏览器。</span><span class="go">跳到「3 日常使用」→</span></a>
       <a class="dcard" href="#upgrade"><span class="k">第 4 章</span><span class="t">机器是旧版本，想升到 1.0.0</span><span class="d">在旧页面里传两个引导文件就行，不用重建 UBI，不用串口。</span><span class="go">看「4.1 从旧版本升级」→</span></a>
-      <a class="dcard" href="#howto-check"><span class="k">不确定</span><span class="t">怎么判断自己在哪一步</span><span class="d">系统还能进的话，一条命令就能看出来。</span><span class="go">看「1.1 判断你在哪一步」↓</span></a>
     </div>
   </header>
 
@@ -269,13 +269,7 @@ details.ver .nw{padding:0 .95rem .95rem;margin:0}
 
   <section id="howto-check">
     <div class="sec-head"><span class="ic i5"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span><h2><span class="no">1.1</span>判断你在哪一步</h2></div>
-    <p>系统还能进 OpenWrt 的话，SSH 上去执行 <code>cat /proc/mtd</code>，看分区名：</p>
-    <div class="box"><table class="kv">
-      <tr><th>看到</th><th>说明</th><th>走哪条</th></tr>
-      <tr><td><code>bootloader</code> / <code>ubootenv</code>，或 <code>nsb_1</code> / <code>romfile</code></td><td>tcboot 或原厂引导</td><td><a href="#serial">第 2 章 首次迁移</a></td></tr>
-      <tr><td><code>bl2</code> 和 <code>ubi</code></td><td>已经是网页 U-Boot</td><td>打开恢复页看左栏：有「试跑固件」「系统诊断」就是 0.3.0 或更新（左下角有「中 | EN」两半的胶囊是 1.0.0，没有但「系统诊断 → 快速检查」最后有「指示灯」一组的是 0.4.0），看<a href="#enter">第 3 章</a>；没有就是更旧的版本，看<a href="#upgrade">第 4 章</a></td></tr>
-    </table></div>
-    <p class="sec-sub">系统进不去的话：面板灯自己开始流水，说明已经是网页 U-Boot、恢复页开着，看第 3 章；一直不流水、按住 reset 也不流水，多半是原厂，只能从第 2 章开始。</p>
+    <p>机器刷的是第三方 tcboot 引导的话，不用拆机、不用串口，走<a href="migrate-image.html">不拆机迁移</a>：把两个引导文件拼成一个镜像，用 tcboot 自带的 <code>spinand</code> 页整片写入，写完就是网页 U-Boot。</p>
   </section>
 
   <section id="models">
@@ -286,8 +280,8 @@ details.ver .nw{padding:0 .95rem .95rem;margin:0}
       <tr><td><b>Nokia XG-040G-MD</b></td><td>Airoha AN7581</td><td>XG-040G-MD</td><td><span class="st ok">实机验证</span></td><td>本教程的截图与串口日志都来自它</td></tr>
       <tr><td><b>Nokia XG-040G-MF</b></td><td>Airoha AN7583</td><td>XG-040G-MF</td><td><span class="st ok">实机验证</span></td><td>与 MD 共用分区布局与恢复页，步骤完全相同</td></tr>
       <tr><td><b>Nokia XG-140G-MD</b></td><td>Airoha AN7581</td><td>XG-040G-MD</td><td><span class="st ok">实测可用</span></td><td>同一套参考设计，直接用 XG-040G-MD 的固件；设备详情页会显示为 XG-040G-MD</td></tr>
-      <tr><td><b>Nokia XG-040G-TF</b></td><td>Airoha AN7581</td><td>XG-040G-TF</td><td><span class="st wip">待实机验证</span></td><td>硬件与 MD 相同，但芯片烧了安全启动密钥，BL2 和 U-Boot 都要带证书：必须用 XG-040G-TF 自己的两个引导文件，<b>不能用 MD 的</b>。面板灯与网口灯是蓝色的（光信号灯仍是红的）。实测已能经串口进到网页 U-Boot</td></tr>
-      <tr><td><b>ZNXT ZN504XG-D</b></td><td>Airoha AN7581</td><td>ZN504XG-D</td><td><span class="st wip">待实机验证</span></td><td>专用固件：闪存与指示灯（蓝色）都和 MD 不同，没有 USB，也没有出厂 MAC</td></tr>
+      <tr><td><b>Nokia XG-040G-TF</b></td><td>Airoha AN7581</td><td>XG-040G-TF</td><td><span class="st ok">实机验证</span></td><td>硬件与 MD 相同，但芯片烧了安全启动密钥，BL2 和 U-Boot 都要带证书：必须用 XG-040G-TF 自己的两个引导文件，<b>不能用 MD 的</b>。面板灯与网口灯是蓝色的（光信号灯仍是红的）</td></tr>
+      <tr><td><b>ZNXT ZN504XG-D</b></td><td>Airoha AN7581</td><td>ZN504XG-D</td><td><span class="st ok">实机验证</span></td><td>专用固件：闪存与指示灯（蓝色）都和 MD 不同，没有 USB，也没有出厂 MAC</td></tr>
       <tr><td><b>ZNXT ZN515XG-D</b></td><td>Airoha AN7581</td><td>XG-040G-MD</td><td><span class="st ok">实测可用</span></td><td>同上，直接用 XG-040G-MD 的固件</td></tr>
     </table></div>
     <p class="sec-sub">其他 AN7581 参考设计的机器大概率也能直接用 MD 固件，试过的请到仓库 Issues 或 QQ 群 <b>1092754041</b> 反馈。</p>
@@ -296,7 +290,7 @@ details.ver .nw{padding:0 .95rem .95rem;margin:0}
   <section id="files">
     <div class="sec-head"><span class="ic i5"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg></span><h2><span class="no">1.3</span>下载固件</h2></div>
     <p class="sec-sub">只列出最近一次 <code>ubi</code> 自适应内存构建。点文件名直接下，文件名不用改，网页会按名字做核对。</p>
-    <div class="box dl"><div class="head"><span class="seg" id="model"><button aria-pressed="true" data-m="XG-040G-MD">XG-040G-MD</button><button aria-pressed="false" data-m="XG-040G-MF">XG-040G-MF</button></span><a class="pb" id="rel-link" href="https://github.com/Loong1996/ImmortalWrt-Airoha/releases" target="_blank" rel="noopener">全部 Releases →</a></div><div id="ubi-dl"><div class="err">正在读取最新 Release…</div></div></div>
+    <div class="box dl"><div class="head"><span class="seg" id="model"><button aria-pressed="true" data-m="XG-040G-MD">XG-040G-MD</button><button aria-pressed="false" data-m="XG-040G-MF">XG-040G-MF</button><button aria-pressed="false" data-m="XG-040G-TF">XG-040G-TF</button><button aria-pressed="false" data-m="ZN504XG-D">ZN504XG-D</button></span><a class="pb" id="rel-link" href="https://github.com/Loong1996/ImmortalWrt-Airoha/releases" target="_blank" rel="noopener">全部 Releases →</a></div><div id="ubi-dl"><div class="err">正在读取最新 Release…</div></div></div>
   </section>
 
   <section id="prep">
