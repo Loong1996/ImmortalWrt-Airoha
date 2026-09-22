@@ -68,7 +68,9 @@
 
 ### 1.0.1
 
-恢复页、串口横幅、引导菜单标题和 About 都显示 **1.0.1**，来源是 `net/httpd.c` 里的 `WEB_VERSION`。`web_uboot_envver` 9 → 10：已经保存过环境的机器下次开机会刷新菜单标题和 About。
+恢复页、串口横幅、引导菜单标题和 About 都显示 **1.0.1**，来源是 `net/httpd.c` 里的 `WEB_VERSION` —— 这一版起它是唯一的出处，`menu.env` 里写的是 `@WEB_VERSION@`，`assemble.py` 组装默认环境时从树里读出来替换。`web_uboot_envver` 9 → 10。
+
+**四个 `bootfile*` 进了刷新清单。** ZN504XG-D 的配方名这一版从 `znxt_zn504xg-d` 改成 `znxt_zn504xg-d-ubi`（和 MD、MF、TF 的 `-ubi` 对齐），产物文件名跟着变。这四个变量由配方名拼出来，原先不在[刷新清单](#web_uboot_envver新-u-boot-自己刷新落后的菜单)里，升级上来的机器会一直留着装机那一版的名字，引导菜单第 1、3、4、5 项照旧名字去 TFTP 服务器要文件 —— 而那个名字已经不再构建了。网页救砖那条路一直不受影响。
 
 ### 1.0.0：整页中英双语
 
@@ -880,13 +882,16 @@ web_uboot_envver  bootmenu_title  bootmenu_1..bootmenu_9
 web_uboot_show_about
 web_uboot_write_bl2  web_uboot_write_fip  web_uboot_format_ubi
 boot_ubi  web_uboot_boot_forever  check_buttons
+bootfile  bootfile_bl2  bootfile_fip  bootfile_upg
 ```
 
 运行时状态刻意不在列表里：`bootdelay` / `bootmenu_delay`（`_switch_to_menu` 把 0 抬到 3，重置会让菜单闪现即超时）、`bootmenu_0`（初始化后被换成 `bootmenu_0d` 的内容）、`ethaddr` —— 它压根不在默认环境里，`env_set_default_vars()` 的 import 碰不到它 —— 还有 `web_uboot_netmode` 那三个，它们是**用户自己选的网络设置**，不是这一版编译进去的默认值，导进来就等于把人家存好的地址推平。**这就是它比 `env default -a -k` 温和的地方**，后者会把 59 个变量全推平。
 
-最后那三个是 0.3.0 才补进去的，补之前版本号那一下对它们是空转：升级上来的机器拿到了新菜单项，可**引导失败仍然回退 TFTP、复位键仍然进 TFTP** —— 而这两条恰好是没有串口的人唯一能用的入口。它们和 `web_uboot_write_*` 同类，是固件默认值而不是用户设置，所以进列表；`bootdelay`、`bootmenu_0`、`ethaddr` 是用户那一侧的，仍然不进。
+`boot_ubi` / `web_uboot_boot_forever` / `check_buttons` 那三个是 0.3.0 才补进去的，补之前版本号那一下对它们是空转：升级上来的机器拿到了新菜单项，可**引导失败仍然回退 TFTP、复位键仍然进 TFTP** —— 而这两条恰好是没有串口的人唯一能用的入口。它们和 `web_uboot_write_*` 同类，是固件默认值而不是用户设置，所以进列表；`bootdelay`、`bootmenu_0`、`ethaddr` 是用户那一侧的，仍然不进。
 
 三个 `web_uboot_write_*` 在列表里，因为它们确实是默认值：存在的意义就是让人能从串口看见并改写刷写步骤。跨过改名升级上来的机器，saved env 里只有旧的 `httpd_write_*`，新代码找不到就退回 `net/httpd.c` 里的内建副本 —— 行为一样，但那个「可以改写」的口子会悄悄消失，所以让刷新把新名字补进去。旧的那几个留着不动，无害。
+
+四个 `bootfile*` 是 1.0.1 补的，同样不是设置：它们由 `assemble.py` 按 `immortalwrt-airoha-<soc>-<profile>-*` 从配方名拼出来，env 片段里想写死会被它直接拒掉，所以**配方一改名它们就跟着变** —— ZN504XG-D 从 `znxt_zn504xg-d` 改成 `znxt_zn504xg-d-ubi` 就是这么一次。不进列表的话，saved env 会一直留着装机那一版的文件名，菜单第 1、3、4、5 项照着旧名字去 TFTP 服务器要文件，而那个名字已经不再构建了。网页救砖不受影响 —— 文件是浏览器传上来的，`net/httpd.c` 只在 DHCP 前后临时清空再还原 `bootfile`，从不读它的值。
 
 > **为什么放在启动时，而不是刷 FIP 的时候**
 >
