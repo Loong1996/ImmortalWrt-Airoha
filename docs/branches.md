@@ -12,7 +12,7 @@
 
 上游 master 已内核 6.18 且原生支持 XG-040G-MD，闪存、cpufreq、pcs-airoha 等补丁全部由上游承担。本项目在它之上叠的东西按主题分两组，每个提交都带 `Topic: common` / `Topic: nokia-xg-040g-md` 标记：
 
-* **U-Boot**（`package/boot/uboot-airoha/`）：Airoha Web U-Boot 网页救砖（`202`）、DRAM 容量探测（`206` / `310`）、复旦颗粒（`120` / `121`）、菜单环境刷新（`210`）、两款机型各自的 defconfig 与 defenv（`95x` / `96x`）
+* **U-Boot**（`package/boot/uboot-airoha/`）：Airoha Web U-Boot 网页救砖（`202` 挂钩 + `src/net/httpd.c`）、DRAM 容量探测（`206` / `310`）、复旦颗粒（`120` / `121`）、菜单环境刷新（`210` 挂钩 + `src/arch/arm/mach-airoha/bootmenu-refresh.c`）、四款机型的 defconfig 与默认环境（`files/web-uboot/`，构建时生成）
 * **内核与设备**：`luci-app-airoha-npu`（由本仓库 `packages/` 以 `src-link` feed 提供）、一行 `nf_conntrack_max`、an7583 的散热配置
 
 改动上游已有文件的只有这几个，也就是 rebase 会报冲突的全部范围：

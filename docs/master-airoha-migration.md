@@ -368,7 +368,7 @@ Release 会标成 **pre-release**，这是故意的（`master-airoha` 不在
 - [ ] **luci-app-airoha-npu 页面能打开、数据正常** —— 包内容一字未改，但构建路径变了，
       主要验 feed 安装位置对不对（`/usr/libexec/rpcd/luci.airoha_npu` 要有执行权限）
 - [ ] **复旦颗粒的机器能引导** —— 如果你的是复旦颗粒，这条验的就是 `120`/`121` 收编
-- [ ] **U-Boot 网页救砖能进**（`952` 的第 9 项菜单，或按住 reset 上电）
+- [ ] **U-Boot 网页救砖能进**（引导菜单第 9 项，或按住 reset 上电）
 - [ ] **`sysupgrade` 后 `/etc/xg-040g-md-mac` 还在**（keep.d 生效）
 
 ### 阶段 5 · 全过之后

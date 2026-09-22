@@ -50,7 +50,7 @@
 | 按卷写入 | `fvol_<name>`… `ubivol` `ubifile` | 出厂数据卷按 `HTTPD_FACTORY_VOLS` 校验长度后 `ubi write`；任意卷 `ubi check \|\| ubi create` 再写。`stay` 字段 0.3.0 起没有了：写完一律不重启，重不重启在页面上点 |
 | 备份下载 | — | `GET /dump?vol=<名>` 走 `ubi read`，`GET /dump?off=&len=` 直接调 `mtd_read()`，**位置保持**（文件偏移 == flash 偏移，与 `dd` 同格式）。流式，只在内存里拿一个窗口；`len` 留空表示读到片尾；`GET /dumpinfo` 回最近一次的 crc32 与读不出的块数，见[下下节](#030-续心跳备份环境重启) |
 | 写入进度 | — | `GET /wr?from=` 回写到哪了，形状同 `/log?from=`：首行是新偏移，其后是新增的行。写一个卷的那几秒设备不应答，页面轮询、漏了就漏了，每行自带绝对值 |
-| 设备详情 | — | 三段。网络那段另有 `GET /netmode?mode=server|static|client&ip=&mask=&save=`：三种模式互斥，一个请求说完，答复是 `ok <模式> <地址> <掩码> <saved|ram>`（客户端档地址与掩码位为 `-`）。延后到答复发出之后才动手 —— 答复必须从旧地址发出去。网络那段露在前台时每 3 秒问一次 `GET /net`，回的就是 `/info` 里 `net` 与 `ports` 那两个对象 —— 换个网口端口表跟着变，不必为此重挂一次 UBI；见[网络那段会自己刷新](#网络那段会自己刷新dhcp-开关会自己存)。`GET /info` 返回 JSON：设备树 `model` / `compatible`、DRAM、MTD 几何与分区、MAC、U-Boot 版本、UBI 卷表（含有没有 `fip` 卷）。卷表按卷名排序，ID 列是 UBI 卷号（按创建先后分配，不同迁移路径得到的号不同）；卷没有固定物理地址，所以不列。表上方一条占用条按预留容量分段，`fit` 与 `rootfs_data` 打斜纹 —— 它们是刷写时先删后建的，容量算在「可写空间」里。`ubi` 对象为此多一个 `avail`（`ubi->avail_pebs`）：光靠 `pebs` 减各卷大小，分不出「还没分出去的」与「UBI 留给自己的」（卷表 2 块加坏块替换预留），条上那两段就并成一段 |
+| 设备详情 | — | 三段。网络那段另有 `GET /netmode?mode=server|static|client&ip=&mask=&save=`：三种模式互斥，一个请求说完，答复是 `ok <模式> <地址> <掩码> <saved|ram>`（客户端档地址与掩码位为 `-`）。延后到答复发出之后才动手 —— 答复必须从旧地址发出去。网络那段露在前台时每 3 秒问一次 `GET /net`，回的就是 `/info` 里 `net` 与 `ports` 那两个对象 —— 换个网口端口表跟着变，不必为此重挂一次 UBI；见[网络那段会自己刷新](#网络那段会自己刷新地址与-dhcp-合成一个三选一)。`GET /info` 返回 JSON：设备树 `model` / `compatible`、DRAM、MTD 几何与分区、MAC、U-Boot 版本、UBI 卷表（含有没有 `fip` 卷）。卷表按卷名排序，ID 列是 UBI 卷号（按创建先后分配，不同迁移路径得到的号不同）；卷没有固定物理地址，所以不列。表上方一条占用条按预留容量分段，`fit` 与 `rootfs_data` 打斜纹 —— 它们是刷写时先删后建的，容量算在「可写空间」里。`ubi` 对象为此多一个 `avail`（`ubi->avail_pebs`）：光靠 `pebs` 减各卷大小，分不出「还没分出去的」与「UBI 留给自己的」（卷表 2 块加坏块替换预留），条上那两段就并成一段 |
 | 系统诊断 | — | 三段。「快速检查」`GET /check`，16 项分五组，见[下一节](#030拦截横幅体检日志)与[下下节](#030-续心跳备份环境重启)；「全片扫描」`GET /scan?off=`，一次 4 MiB，页面累加；「串口日志」`GET /log`，`?from=` 只回新字节、正文第一行是新偏移 |
 | 环境变量 | — | `GET /env` 只读列出全部 env；`GET /envreset` 跑 `env default -a && saveenv` |
 | 启动与重启 | — | `GET /reboot` 答复发出并被确认之后才 `reset`；`GET /boot` 执行 `bootcmd`；`GET /bootonce` 让下次开机停在本页 |
@@ -125,7 +125,7 @@ options {
 };
 ```
 
-按列出的顺序流水，与名字、颜色无关；列表里找不到的灯直接去掉，不留黑帧。属性名不带厂商前缀，照 `boot-led` 的写法，名字里的 `httpd-chase` 说明它只管网页救砖的流水，不是网页 U-Boot 的全部 LED。MD、MF 在各自的 `950` / `960` 里声明，ZN504、TF 在各自的 U-Boot DTS 里。
+按列出的顺序流水，与名字、颜色无关；列表里找不到的灯直接去掉，不留黑帧。属性名不带厂商前缀，照 `boot-led` 的写法，名字里的 `httpd-chase` 说明它只管网页救砖的流水，不是网页 U-Boot 的全部 LED。四块板都在 `src/` 下自己的设备树里声明：MD、TF、ZN504 在 `dts/upstream/src/arm64/airoha/` 的板级 DTS 里，MF 在 `arch/arm/dts/an7583-nokia-xg-040g-mf.dts` 里。
 
 **没有回退。** 没声明的板子不流水，而不是退回去按名字猜 —— 两套机制并存，新板子忘了声明也不会有人发现。发现靠三处：`uboot-airoha` 的 Makefile 在 U-Boot 编完后查控制 dtb（`dts/dt.dtb`，DTS 放在哪都不影响），`CONFIG_CMD_HTTPD=y` 而里面没有 `httpd-chase-leds` 就编译失败；运行时串口打一行；「系统诊断 → 快速检查」最后一组「指示灯」列出参与流水的灯，未声明或有灯没找到时亮黄灯。
 
@@ -557,7 +557,7 @@ printf("httpd: that image did not boot; the flash was not touched\n");
 
 0.3.0 之前是两种图形：流水＝网线还在用，齐闪＝上传结束、设备自己在写、网线随便拔。齐闪的含义整个建立在「连接已经关了」之上，而 A1 之后连接不关 —— 从第一个字节到那个重启框，页面一直连着。于是齐闪没有可说的话，删掉了，`httpd_blink()` 变成 `httpd_chase()`：写一个卷的那十秒是同步的，`httpd_tick()` 不跑，改由 cyclic 驱动同一条流水，图形不变。
 
-哪几盏灯参与流水、按什么顺序，由板子在 U-Boot 设备树的 `/options/u-boot` 里用 `httpd-chase-leds` 列出（见上面 [0.4.0](#040流水灯由板子声明tf-的签名-bl2zn504-的-fip-保护)），与灯的名字、颜色无关。
+哪几盏灯参与流水、按什么顺序，由板子在 U-Boot 设备树的 `/options/u-boot` 里用 `httpd-chase-leds` 列出（见上面 [0.4.0](#040流水灯由板子声明tf-的安全启动证书zn504-的-fip-保护)），与灯的名字、颜色无关。
 
 **进度看页面，不看灯。** 灯只说「还在动」；写到哪一步、校验到百分之几，都在进度条上。
 
@@ -639,7 +639,7 @@ printf("httpd: that image did not boot; the flash was not touched\n");
 
 `ubi_write_production`（写 `fit` 卷）会先删掉 `rootfs_data` 给新卷腾地方，所以**这次上传里只要带了固件，配置必然被清空**，勾没勾别的选项都一样。
 
-**只传 `preloader.bin` / `bl31-uboot.fip`、不传固件**的那种日常更新引导器则不清配置。`954` 之前会 —— 那是个 bug，见补丁清单里 `954` 那节。
+**只传 `preloader.bin` / `bl31-uboot.fip`、不传固件**的那种日常更新引导器则不清配置。`954` 之前会 —— 那是个 bug，见 [`954`：日常更新引导器不再清配置](#954日常更新引导器不再清配置)。
 
 系统还能进的话，请用 `sysupgrade -c` 保留配置。这个页面的定位是「系统起不来了」。
 
@@ -771,37 +771,71 @@ UBI 本来也没有标记，BL2 每次全片扫，迁移镜像跟它保持一致
 
 ---
 
-## 补丁清单
+## 源码清单
 
-都在 `package/boot/uboot-airoha/patches/`：
+网页救砖落到 U-Boot 源码树上分三处，`package/boot/uboot-airoha/` 底下：
 
-| 补丁 | 做什么 |
+| 放哪 | 装什么 | 什么时候生效 |
+| --- | --- | --- |
+| `patches/` | **只有对上游文件的挂钩** | `Build/Prepare` 按文件名顺序打 |
+| `src/` | 我们自己新增的文件，整棵树覆盖上去 | 打补丁**之前**拷进源码树 |
+| `files/web-uboot/` | 四块板的 defconfig 与默认环境的**素材** | 打完补丁后由 `assemble.py` 生成 |
+
+### `patches/` —— 对上游的挂钩
+
+45 个补丁里网页救砖占 3 个：
+
+| 补丁 | 改的上游文件 | 做什么 |
+| --- | --- | --- |
+| `202-net-add-httpd-recovery-server` | `net/net.c`、`net/Kconfig`、`net/Makefile`、`include/net-legacy.h` | 把 `net/httpd.c` 挂进网络栈与构建；`Kconfig` 里四个选项：`CMD_HTTPD`、`HTTPD_FACTORY_VOLS`（出厂数据卷名与长度）、`HTTPD_FACTORY_MAC`（出厂 MAC 在哪个卷的哪个偏移）、`CMD_HTTPD_STOCK_RESTORE`（按板启用裸写） |
+| `203-console-record-keep-pre-relocation-output` | `common/console.c` | 重定位后保留重定位前的 console 录制内容，`GET /log` 才能从横幅看起 |
+| `210-airoha-share-bootmenu-env-refresh` | `arch/arm/mach-airoha/Makefile` | 把菜单刷新钩子编进 mach-airoha |
+
+三个补丁加起来不到 300 行 —— httpd 本体和刷新钩子都不在里面。
+
+### `src/` —— 我们自己新增的文件
+
+| 文件 | 是什么 |
 | --- | --- |
-| `202-net-add-httpd-recovery-server` | 全部的 httpd —— 新增 `net/httpd.c`，外加 `net.c` / `Kconfig` / `Makefile` / `net-legacy.h` 四处挂接；`Kconfig` 里四个选项：`CMD_HTTPD`、`HTTPD_FACTORY_VOLS`（出厂数据卷名与长度）、`HTTPD_FACTORY_MAC`（出厂 MAC 在哪个卷的哪个偏移）、`CMD_HTTPD_STOCK_RESTORE`（按板启用裸写） |
-| `203-console-record-keep-pre-relocation-output` | 重定位后保留重定位前的 console 录制内容，`GET /log` 才能从横幅看起 |
-| `950-configs-xg-040g-md-enable-httpd` | MD defconfig：`PROT_TCP` / `CMD_HTTPD` / `CYCLIC`，`HTTPD_FACTORY_VOLS="ri:0x40000 bosa:0x40000"`，`HTTPD_FACTORY_MAC="ri:0x3e"`，`CMD_HTTPD_STOCK_RESTORE=y`，`CONSOLE_RECORD` 64 KiB（重定位前 2 KiB） |
-| `951-defenvs-xg-040g-md-httpd-recovery` | MD 触发路径，与两条 httpd 专用的 env 脚本 |
-| `952-xg-040g-md-bootmenu-web-recovery-branding` | MD 引导菜单署名、手动开服务的菜单项、`web_uboot_envver` 自动刷新、`ethaddr` 两道闸 |
-| `954-xg-040g-md-httpd-fip-preserve-rootfs-data` | MD defenv 加 `web_uboot_write_fip`（网页更新引导器不清配置） |
-| `960` / `961` / `962` | MF 的同一套：defconfig、触发路径、菜单 |
+| `net/httpd.c` | 全部的 httpd，8800 行，页面也嵌在里面 |
+| `arch/arm/mach-airoha/bootmenu-refresh.c` | [`web_uboot_envver`](#web_uboot_envver新-u-boot-自己刷新落后的菜单) 刷新钩子与 `ethaddr` 那道闸 |
+| `dts/upstream/src/arm64/airoha/*.dts` | MD、TF、ZN504 的板级设备树，流水灯声明在这儿 |
+| `arch/arm/dts/*-u-boot.dtsi`、`an7583-nokia-xg-040g-mf.dts` | U-Boot 侧的设备树补充；MF 整块板的 DTS 也在这儿，连同它的流水灯（AN7583 不走 `OF_UPSTREAM`） |
 
-页面本身不在补丁里手改：源文件是 fork 的 `package/boot/uboot-airoha/files/httpd/page.html`，`gen.py` 把它逐行转成 C 字符串塞进 `net/httpd.c` 的 `PAGE_BEGIN` / `PAGE_END` 之间。改页面 → 跑脚本 → 重新生成 `202`。
+**这些文件没有 diff 可言。** `patches/` 的语义是「对上游源码的修改集」，而这里每一个都是纯新增；做成补丁只会让每次构建多 apply 一遍、上游同步时多一份冲突面，换不来任何可回退性。OpenWrt 的 `Build/Prepare/Default` 本来就先拷 `src/` 再打补丁，顺序是现成的。
 
-0.1.x 里 `953`（刷回原厂）和 `954`（`web_uboot_write_fip`）各自带的 `net/httpd.c` 片段在 0.2.0 都并回了 `202`，理由和下面那段一样：它们改的是同一个我们自己新增的文件。剩下的按板差异全部退到 defconfig 与 defenv 里。
+### `files/web-uboot/` —— 四块板的 defconfig 与默认环境
+
+补丁打完，`assemble.py` 从这里生成 `configs/<板>_defconfig` 与 `defenvs/<板>_env` 写进源码树。四块板：MD、MF、TF、ZN504XG-D。
+
+- **`boards/<板>`** —— 一块板一个文件，六七行：SoC、配方名、设备树、指示灯、用哪个 defconfig 包、出厂卷策略。加一块板就是加一个这样的文件。
+- **`defconfig/` 三层，用 `#include` 串起来** —— `airoha_web`（恢复页本身：httpd、TCP、cyclic、事件钩子、console record）← `an7581_web` / `an7583_web`（换引导器的整套：SoC 选项、EN8811、整片刷回原厂、关 MMC）。只做链式加载、不换引导器的板子包最上面那层就停。
+- **`env/` 四个片段拼起来** —— `menu.env`（标题、`web_uboot_envver`、About、菜单项、复位键进 httpd）+ `replace-bootloader.env`（BL2、FIP、UBI 启动脚本）+ `policy-factory.env` / `policy-foreign.env`（读出厂 MAC 与卷，或「UBI 里没有 `fip` 卷就当是原厂、一个字节都不写」）。
+- 四个 `bootfile*` 由配方名按 `immortalwrt-airoha-<soc>-<profile>-*` 拼出来，片段里想写死会被 `assemble.py` 直接拒掉。
+
+**版本号全树只有一处。** `env/menu.env` 里写的是 `@WEB_VERSION@`，`assemble.py` 扫源码树读出 `net/httpd.c` 的 `WEB_VERSION` 替换进去，读到两个不同的值就报错退出。改版本只要动那一个 `#define`，再把 `web_uboot_envver` 加一。
+
+页面本身不手改 `httpd.c`：源文件是 `files/httpd/page.html`，`gen.py` 把它逐行转成 C 字符串塞进 `src/net/httpd.c` 的 `PAGE_BEGIN` / `PAGE_END` 之间。改页面 → 跑脚本 → 提交 `httpd.c`。
+
+按板差异原先走补丁：0.1.x 里每块板三四个（`950`–`954` 给 MD、`960`–`962` 给 MF），后来各自并成一个（`950` / `960`），1.0.1 整个退到了这里。四块板之间实际差的只是 SoC、配方名、设备树、灯色和有没有出厂卷 —— 每多一块板就多一个补丁去重复其余那一百多行，不如让它们共用同一份素材。
 
 `206` / `310`（DRAM 容量探测）编号挨着但**与网页救砖无关**，是独立的 bug 修复，影响所有 an7581 / an7583 设备 —— 见[设备变体 → 内存容量](variants.md#内存容量)。分开放是为了以后单独提上游时不用再拆。它们现在会把整个推导过程打到 console，所以「系统诊断」的串口日志段看得到 —— 唯一的交集就是这个。
 
-> **为什么只有一个 httpd 补丁**
+> **httpd 为什么先是一个补丁、后来干脆不是补丁**
 >
-> 开发时它是五个（骨架 → 上传 → DHCP 与面板灯 → 引导器 → 页面），合进主线时压成了一个。
+> 开发时它是五个（骨架 → 上传 → DHCP 与面板灯 → 引导器 → 页面），0.2.0 合进主线时压成了一个，1.0.1 又整个搬去了 `src/`。两步是同一个理由的两段。
 >
 > `patches/` 目录的语义是「**对上游源码的修改集**」，不是提交历史。`net/httpd.c` 是我们新增的文件，让它被五个补丁层层重写的代价是实打实的：构建时同一个文件反复 apply 五次、想知道最终形态得在脑子里叠四层 diff、上游同步时冲突面变成五份。而且没有哪一层是可以单独回退的 —— 你不会想只去掉「DHCP」或「页面」，它们本来就是一个功能。
+>
+> 压成一个之后还剩最后一层多余：这个文件根本没有「上游版本」，那份 8800 行的 diff 每一行都是 `+`。既然如此，放 `src/` 直接覆盖就行。
 >
 > 对照同目录里合理的分法：`100`–`111` 是 backport，一个补丁对应上游一个 commit；`200` / `201` 是两件互不相干的事。**分开要有理由，「开发时是分步做的」不算理由。**
 >
 > 开发过程的原貌（五个补丁、21 个提交）留在 `archive/master-XG-040G-MD-httpd`。
 
-### `951` 改了什么
+### 触发路径与两条刷写脚本改了什么
+
+（现在在 `env/replace-bootloader.env` 里，早先是补丁 `951` / `961`。）
 
 ```
 check_buttons=if button reset ; then httpd ; fi              ← 原来是 run boot_tftp
@@ -818,7 +852,9 @@ web_uboot_format_ubi=ubi detach ; mtd erase ubi && ubi part ubi
 
 **TFTP 一条没删**：bootmenu 的第 2、4、5、6 项照旧，`boot_tftp*` 全套变量都在。自动路径走浏览器，手动路径留 TFTP。
 
-### `952` 改了什么
+### 引导菜单的署名改了什么
+
+（现在在 `env/menu.env` 里，早先是补丁 `952` / `962`。）
 
 菜单原来看不出这是哪来的固件 —— 和一份原厂 UBI 引导长得一模一样，进到菜单里的人也没有路径找回项目。
 
@@ -849,13 +885,13 @@ Press Ctrl-C to abort
 - **第 10 项画出来是「a.」不是「10.」。** 快捷键只有一个字符：1–9 之后接 a–z，0 留给 Exit。所以仓库地址写在标题里而不是藏在按键后面 —— 不按也要能看见，按下去才补上作者页。
 - **标题去掉了原来的 `( ( ( ... ) ) )`。** 标题从第 3 列画起（`bootmenu_print_entry` 用 `ANSI_CURSOR_POSITION`），而 `_bootmenu_update_title` 会把完整的 `$ver`（72 字符）追加在后面。80 列下留给 `$ver` 的只有 36 列，版本号后半截连 commit hash 一起被截掉；去掉那三对括号腾出 12 列，r 号和 hash 就都能看全了（日期仍会截，无所谓）。末尾补了 `\e[0m`，免得 `_bootmenu_update_title` 没跑时后面的输出继承亮白。
 - **第 9 项是红的**，和写引导器的那两项同色：它是刷机入口，且一旦进去，机器就离开菜单直到被中断。
-- **版本号写了两遍**：`bootmenu_title` 里一份（`952`），`net/httpd.c` 的 `WEB_VERSION` 一份（`202`）。env 是纯文本，看不见 C 宏。改版本要同时动这两个补丁（MF 还有 `962`），并把 `web_uboot_envver` 加一 —— 网页侧栏那个 `0.2.0` 用的就是后者。
+- **版本号一度写了两遍**：`bootmenu_title` 里一份、`net/httpd.c` 的 `WEB_VERSION` 一份 —— env 是纯文本，看不见 C 宏，改版本得同时动两处，板子越多要动的地方越多。1.0.1 起 `menu.env` 里写的是 `@WEB_VERSION@`，`assemble.py` 从 `net/httpd.c` 读出来替换，[全树只剩那一个 `#define`](#源码清单)。改版本仍要把 `web_uboot_envver` 加一 —— 网页侧栏显示的是前者，老机器刷不刷新看的是后者。
 
 > **老机器升级引导器后看不到新菜单 —— `web_uboot_envver` 之后会自动处理。**
 >
 > `CONFIG_ENV_IS_IN_UBI`：`ubootenv` 卷里存的是**完整一份**环境，加载时整个盖掉编译进固件的默认值。已经初始化过 env 的机器换了新 FIP，菜单还是旧的 —— 新加的 `bootmenu_8` / `bootmenu_9` 根本不在它的环境里。
 >
-> `952` 加了自动刷新（见下一节 [`web_uboot_envver`](#envver-新-u-boot-自己刷新落后的菜单)），**从 `envver=1` 这版固件开始**升级引导器就不用手动做什么了。手动的办法留着备用：菜单选 `0. Exit` 进命令行，跑：
+> `952` 加了自动刷新（见下一节 [`web_uboot_envver`](#web_uboot_envver新-u-boot-自己刷新落后的菜单)），**从 `envver=1` 这版固件开始**升级引导器就不用手动做什么了。手动的办法留着备用：菜单选 `0. Exit` 进命令行，跑：
 >
 > ```
 > env default -a -k
@@ -871,7 +907,7 @@ Press Ctrl-C to abort
 
 ### `web_uboot_envver`：新 U-Boot 自己刷新落后的菜单
 
-默认环境里带一个 `web_uboot_envver`，`board/airoha/an7581/an7581_rfb.c` 里挂一个 `EVT_POST_PREBOOT` 钩子：saved env 的 `web_uboot_envver` 落后于编译进去的默认值，就把描述菜单的那几个变量重新导入一遍，然后 `saveenv`。
+默认环境里带一个 `web_uboot_envver`，`arch/arm/mach-airoha/bootmenu-refresh.c`（补丁 `210`）里挂一个 `EVT_POST_PREBOOT` 钩子：saved env 的 `web_uboot_envver` 落后于编译进去的默认值，就把描述菜单的那几个变量重新导入一遍，然后 `saveenv`。
 
 时机在 `preboot` 跑完之后、`bootdelay_process()` 和 `autoboot_command()` 画菜单之前 —— env 已加载，菜单还没画。
 
@@ -905,7 +941,7 @@ bootfile  bootfile_bl2  bootfile_fip  bootfile_upg
 >
 > 追加版本号的 `_bootmenu_update_title` 第一件事就是 `setenv _bootmenu_update_title` 把自己清空 —— 它只为「环境首次初始化」而存在。所以钩子重新导入 `bootmenu_title` 之后，saved env 里已经没有任何人能把版本号加回去，菜单会一直显示没有版本的标题。这是从 0.1.0 网页直接升上来的机器踩到的：菜单项全对，标题却光秃秃。
 >
-> 现在由钩子自己补。两条路不会重复追加：**环境被重建**时跑的是那个 env 脚本，而那种情况下 `web_uboot_envver` 恰好匹配、钩子不触发；**固件升级**时钩子触发，而脚本早已自删除。钩子放在共用的 an7581 board 文件里是安全的：别的板子默认环境里没有 `web_uboot_envver`，`env_get_default_into()` 返回负值就直接 return。`saveenv` 是尽力而为 —— 首次迁移会在 `_init_env` 建出 env 卷之前走到这里，而它本来就跑在默认环境上，不需要这次写入。
+> 现在由钩子自己补。两条路不会重复追加：**环境被重建**时跑的是那个 env 脚本，而那种情况下 `web_uboot_envver` 恰好匹配、钩子不触发；**固件升级**时钩子触发，而脚本早已自删除。钩子放在 `mach-airoha` 下、由所有 airoha SoC 共用（AN7583 的 MF 走的也是它）是安全的：别的板子默认环境里没有 `web_uboot_envver`，`env_get_default_into()` 返回负值就直接 return。`saveenv` 是尽力而为 —— 首次迁移会在 `_init_env` 建出 env 卷之前走到这里，而它本来就跑在默认环境上，不需要这次写入。
 
 ### 刷回原厂与写入偏移（`CMD_HTTPD_STOCK_RESTORE`）
 
@@ -1135,11 +1171,11 @@ jsdom 里四条断言全绿 —— 而它们验的是**预览桩**，桩的假 X
 
 每次改动都跑三层，真机编译一次约 1.5 小时，所以前两层要在本地过：
 
-1. **页面** —— `files/httpd/test/` 里的 jsdom 用例，482 个，`cd files/httpd/test && npm install && npm test`（用例自己会先跑 `preview.py` 渲染，不会拿到过期的 HTML）。改动落在 httpd 目录时 CI 跟着跑，见 `.github/workflows/uboot-check.yml`（同一个 workflow 还会真把两块板的 U-Boot 交叉编出来）。覆盖：`/info` 填表与失败降级、每一页的确认框内容与拦截条件、实际提交的 `FormData` 字段集、多文件上传进度按累计长度定位、200 / 400 / 断网三种结局、「不重启」留页并靠心跳回报、备份下载的 URL 与越界拦截、环境变量的过滤与恢复默认、体检分组、心跳的两次失败判定与三种覆盖层、长时间静默只变点不弹框、整片下载是一个文件、传完报出 crc32 且多份往下排不覆盖、重建 UBI 必须 BL2 与 U-Boot 一起传的四种组合（只带一个的两种都拦且不给「仍要写入」、都带放行、不勾重建时单独换 U-Boot 不误伤）、备份下载的进度条不假装知道字节数（进度条是 ind、不摆百分比、说明指向浏览器下载栏）与下载期间心跳转黄但不弹框、端口链路轮询（切到网络那一段才开始、切走就停、桩里改了链路状态表跟着变、轮询回来不覆盖正在编辑的表单）、三种网络模式互斥与各自的字段显隐、服务器档把末位改成 .1 且掩码定成 /24（页面预览与设备回执两处都验）、「不保存则下次开机回到 X」那句话跟着 `saved` 走、`/netmode` 五种回执、写完与改过环境之后体检结果作废并重跑、作者链接。跑的是真实的页面源文件，不是复制品
-2. **编译** —— 整个补丁序列打到纯净的 U-Boot 2026.07 上，在 Docker 里（本机已有的 `ghcr.io/openwrt/buildbot/buildworker` 镜像加 `gcc-aarch64-linux-gnu`）对 MD、MF 两个 defconfig 各编一遍 `net/httpd.o` 与完整 `u-boot.bin`。0.1.x 只做语法级检查，漏过一次把 `flash_part()` 圈进 `#if` 的编译错误，这一层就是为它加的
+1. **页面** —— `files/httpd/test/` 里的 jsdom 用例，482 个，`cd files/httpd/test && npm install && npm test`（用例自己会先跑 `preview.py` 渲染，不会拿到过期的 HTML）。改动落在 httpd 目录时 CI 跟着跑，见 `.github/workflows/uboot-check.yml`（同一个 workflow 还会真把四块板的 U-Boot 交叉编出来）。覆盖：`/info` 填表与失败降级、每一页的确认框内容与拦截条件、实际提交的 `FormData` 字段集、多文件上传进度按累计长度定位、200 / 400 / 断网三种结局、「不重启」留页并靠心跳回报、备份下载的 URL 与越界拦截、环境变量的过滤与恢复默认、体检分组、心跳的两次失败判定与三种覆盖层、长时间静默只变点不弹框、整片下载是一个文件、传完报出 crc32 且多份往下排不覆盖、重建 UBI 必须 BL2 与 U-Boot 一起传的四种组合（只带一个的两种都拦且不给「仍要写入」、都带放行、不勾重建时单独换 U-Boot 不误伤）、备份下载的进度条不假装知道字节数（进度条是 ind、不摆百分比、说明指向浏览器下载栏）与下载期间心跳转黄但不弹框、端口链路轮询（切到网络那一段才开始、切走就停、桩里改了链路状态表跟着变、轮询回来不覆盖正在编辑的表单）、三种网络模式互斥与各自的字段显隐、服务器档把末位改成 .1 且掩码定成 /24（页面预览与设备回执两处都验）、「不保存则下次开机回到 X」那句话跟着 `saved` 走、`/netmode` 五种回执、写完与改过环境之后体检结果作废并重跑、作者链接。跑的是真实的页面源文件，不是复制品
+2. **编译** —— 照 `Build/Prepare` 的顺序铺到纯净的 U-Boot 2026.07 上（先拷 `src/`，再按文件名顺序打补丁，最后跑 `assemble.py` 生成 defconfig 与默认环境），在 Docker 里（本机已有的 `ghcr.io/openwrt/buildbot/buildworker` 镜像加 `gcc-aarch64-linux-gnu`）对 MD、MF、TF、ZN504 四个 defconfig 各编一遍 `net/httpd.o` 与完整 `u-boot.bin`。0.1.x 只做语法级检查，漏过一次把 `flash_part()` 圈进 `#if` 的编译错误，这一层就是为它加的
 
-   没有 Docker 的机器上还有一层兜底：`net/httpd.c` 从 `202` 里抽成真正的 `.c` 文件来改（`+` 行进出，行数由脚本重算，round-trip 逐字节比对过），再跑一个不需要编译器的静态检查 —— 去掉注释与字符串后的括号配对、`printf` 族的格式符与实参个数、有没有定义了没用到的 static 函数。先在改动前的版本上跑一遍当对照组。**这不能替代第 2 层**，它查不出 U-Boot API 的签名对不对
-3. **补丁** —— 53 个补丁 `patch -p1` 顺序应用无 offset / fuzz（`120` / `121` 是 CRLF，macOS 的 patch 要先 `tr -d '\r'`，CI 的 GNU patch 自己处理）
+   没有 Docker 的机器上还有一层兜底：直接对 `src/net/httpd.c` 跑一个不需要编译器的静态检查 —— 去掉注释与字符串后的括号配对、`printf` 族的格式符与实参个数、有没有定义了没用到的 static 函数。先在改动前的版本上跑一遍当对照组。**这不能替代第 2 层**，它查不出 U-Boot API 的签名对不对
+3. **补丁** —— 45 个补丁 `patch -p1` 顺序应用无 offset / fuzz（`120` / `121` 是 CRLF，macOS 的 patch 要先 `tr -d '\r'`，CI 的 GNU patch 自己处理）
 
 刷之前从 fip 里解出 U-Boot 二进制核对一遍：
 
