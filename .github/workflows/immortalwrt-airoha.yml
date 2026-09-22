@@ -245,7 +245,7 @@ jobs:
             ;;
           zn504xg-d)
             [ "$DEVICE_VARIANT" = "ubi" ] || { echo "::error::ZNXT 只有 ubi 布局（不要选 stock）"; exit 1; }
-            DEVICE_SYMBOL=znxt_${DEVICE}
+            DEVICE_SYMBOL=znxt_${DEVICE}-ubi
             ;;
           *)
             case "$DEVICE_VARIANT" in
@@ -299,7 +299,7 @@ jobs:
               echo "- MAC 取自 ubi 中的 \`ri\` 卷，原厂 \`bosa\` 亦需转存为同名卷"
               echo "- 自带网页救砖（Airoha Web U-Boot），按住 reset 上电、引导失败或引导菜单第 9 项进入"
               ;;
-            znxt_zn504xg-d)
+            znxt_zn504xg-d-ubi)
               echo "- OpenWrt U-Boot 布局：bl2 128K + ubi（ESMT F50L2G41XA 256 MiB）"
               echo "- **会替换引导程序**，附件 \`preloader.bin\` 与 \`bl31-uboot.fip\` 需经 USB-TTL 刷入"
               echo "- 附件 \`*-recovery.itb\` 为 initramfs 救援镜像"

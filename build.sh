@@ -191,7 +191,7 @@ case "$DEVICE" in
     zn504xg-d)
         DEVICE_SUBTARGET="an7581"
         CONFIG_FILE="config/zn504xg-d-master.config"
-        DEVICE_SYMBOL="znxt_zn504xg-d"
+        DEVICE_SYMBOL="znxt_zn504xg-d-ubi"
         [ "$VARIANT" = "ubi" ] || die "ZNXT ZN504XG-D 只有 ubi 布局（不要传 -v stock）"
         ;;
     *)
@@ -484,7 +484,7 @@ echo
 case "$DEVICE_SYMBOL" in
     nokia_xg-040g-md)
         echo "刷机用: factory-kernel.bin + factory-rootfs.bin" ;;
-    nokia_xg-040g-md-ubi|nokia_xg-040g-mf-ubi|nokia_xg-040g-tf-ubi|znxt_zn504xg-d)
+    nokia_xg-040g-md-ubi|nokia_xg-040g-mf-ubi|nokia_xg-040g-tf-ubi|znxt_zn504xg-d-ubi)
         echo "刷机用: preloader.bin + bl31-uboot.fip（USB-TTL 刷入）、*-recovery.itb 救援镜像" ;;
     nokia_xg-040g-mf)
         echo "刷机用: factory-kernel.bin + factory-rootfs.bin" ;;
