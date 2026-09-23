@@ -449,6 +449,25 @@ jobs:
         print("附加软件包 移除: %s" % (" ".join(rm) or "(无)"))
         PY
         . "$RUNNER_TEMP/extra.sh"
+        # dae 依赖 kmod-xdp-sockets-diag（要 KERNEL_XDP_SOCKETS），运行还要 BTF 与 BPF_EVENTS；
+        # 这几项在 airoha 上默认全关，不补的话 defconfig 会把 dae 连同 geoip/geosite/luci 一起丢掉。
+        # 只在选了 dae 时才开：BTF 会让内核变大，还要多编 pahole 和 LLVM
+        for p in $EXTRA_ADD; do
+          case "$p" in dae|dae-*|luci-app-dae) NEED_BPF=1 ;; esac
+        done
+        if [ -n "$NEED_BPF" ]; then
+          for s in DEBUG_INFO DEBUG_INFO_REDUCED DEBUG_INFO_BTF BPF_EVENTS XDP_SOCKETS; do
+            sed -i -E "/^(# )?CONFIG_KERNEL_${s}(=| is not set)/d" .config
+          done
+          cat >> .config <<'EOF'
+        CONFIG_KERNEL_DEBUG_INFO=y
+        # CONFIG_KERNEL_DEBUG_INFO_REDUCED is not set
+        CONFIG_KERNEL_DEBUG_INFO_BTF=y
+        CONFIG_KERNEL_BPF_EVENTS=y
+        CONFIG_KERNEL_XDP_SOCKETS=y
+        EOF
+          echo "已为 dae 打开内核 BTF / BPF_EVENTS / XDP_SOCKETS"
+        fi
         make defconfig
         grep -q "^CONFIG_TARGET_airoha_${DEVICE_SUBTARGET}_DEVICE_${DEVICE_SYMBOL}=y" .config \
           || { echo "::error::defconfig 后设备符号丢失，$DEVICE_SYMBOL 在该源码分支中可能不存在"; exit 1; }
