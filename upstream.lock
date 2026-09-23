@@ -16,6 +16,6 @@ SOURCE_BRANCH=master-airoha
 
 # 编译时的预期值。对不上说明上游换了版本，本项目打在其上的补丁需要复查 ——
 # 尤其 202 打在 U-Boot 核心的 net/net.c、net/Kconfig、include/net-legacy.h 上，
-# 大版本一升几乎必然要重新生成。
+# 204 改的是 net/tcp.c 的发送路径，大版本一升几乎必然要重新生成。
 UBOOT_AIROHA_VERSION=2026.07
 KERNEL_VERSION=6.18
