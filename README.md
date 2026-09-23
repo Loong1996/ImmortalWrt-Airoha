@@ -12,6 +12,8 @@
 
 Nokia XG-040G-MD、Nokia XG-040G-MF、Nokia XG-140G-MD、Nokia XG-140G-MF、Nokia XG-040G-TF、ZNXT ZN504XG-D、ZNXT ZN515XG-D、FiberHome HG5382A（待实机验证）
 
+Brightspeed / Gemtek XR1710G 只出网页 U-Boot（原厂引导锁着，U-Boot 写在 chainloader 分区，由原厂 U-Boot 启动；待实机验证），固件用 [naoki66/ImmortalWrt-for-Gemtek-brightspeed](https://github.com/naoki66/ImmortalWrt-for-Gemtek-brightspeed)
+
 ![网页 U-Boot](img/web-uboot.png)
 
 ![LuCI 概览](img/immortalwrt.png)
@@ -50,7 +52,7 @@ Nokia XG-040G-MD、Nokia XG-040G-MF、Nokia XG-140G-MD、Nokia XG-140G-MF、Noki
 本仓库只放编译配置、自带软件包、网页与 CI；固件源码在 [Loong1996/immortalwrt](https://github.com/Loong1996/immortalwrt) 的 `master-airoha` 分支（immortalwrt `master`，内核 6.18），机型支持和 U-Boot 补丁都在源码树里。
 
 1. Fork 本仓库，在 Actions 页面启用 workflow。
-2. `Actions → ImmortalWrt-Airoha → Run workflow`，机型默认 `all`（并行编全部），也可单选 `xg-040g-md` / `xg-040g-mf` / `xg-040g-tf` / `zn504xg-d` / `hg5382a`。再选变体。内存容量默认[自适应](docs/variants.md#内存容量)，不用管。
+2. `Actions → ImmortalWrt-Airoha → Run workflow`，机型默认 `all`（并行编全部），也可单选 `xg-040g-md` / `xg-040g-mf` / `xg-040g-tf` / `zn504xg-d` / `hg5382a` / `xr1710g`（只出 U-Boot）。再选变体。内存容量默认[自适应](docs/variants.md#内存容量)，不用管。
 3. 约 1~2 小时后出固件，去向由「发布方式」决定：
    - `auto`（默认）：main 上编 `master-airoha` 发到本仓库的 Releases；别的分支只传 Artifact。
    - `prerelease`：发 Release 但标 pre-release，不盖 Latest，也不进教程的下载列表。

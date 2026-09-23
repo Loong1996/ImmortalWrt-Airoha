@@ -2,7 +2,7 @@ name: ImmortalWrt-Airoha
 
 # 让 Actions 列表直接显示本次选了什么，省得点进去翻日志里的 env 块。
 # 必须写成一行：折叠标量会把缩进更深的续行当字面量，在 ${{ }} 中间插进换行。
-run-name: "${{ inputs.device == 'all' && '全部机型' || inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || inputs.device == 'xg-040g-tf' && 'XG-040G-TF' || inputs.device == 'zn504xg-d' && 'ZN504XG-D' || inputs.device == 'hg5382a' && 'HG5382A' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}${{ inputs.release == 'prerelease' && ' · pre-release' || inputs.release == 'artifact' && ' · 不发布' || '' }}"
+run-name: "${{ inputs.device == 'all' && '全部机型' || inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || inputs.device == 'xg-040g-tf' && 'XG-040G-TF' || inputs.device == 'zn504xg-d' && 'ZN504XG-D' || inputs.device == 'hg5382a' && 'HG5382A' || inputs.device == 'xr1710g' && 'XR1710G' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}${{ inputs.release == 'prerelease' && ' · pre-release' || inputs.release == 'artifact' && ' · 不发布' || '' }}"
 
 on:
   workflow_dispatch:
@@ -24,6 +24,7 @@ on:
           - xg-040g-tf
           - zn504xg-d
           - hg5382a
+          - xr1710g
       device_variant:
         description: '设备变体（ubi 推荐：作者魔改 U-Boot，带网页救砖；stock 保留原厂引导）'
         required: true
@@ -94,12 +95,12 @@ jobs:
     name: ${{ matrix.device }}
     runs-on: ubuntu-latest
     # 选 all 时每个机型一个 job 并行编；单选时矩阵里只有这一个机型。
-    # TF、ZN504 与 HG5382A 只有 ubi 布局，stock 下的 all 不带它们。
+    # TF、ZN504、HG5382A 与 XR1710G 只有 ubi 布局，stock 下的 all 不带它们。
     # 一个机型失败不取消其他机型。
     strategy:
       fail-fast: false
       matrix:
-        device: ${{ fromJSON(inputs.device != 'all' && format('["{0}"]', inputs.device) || inputs.device_variant == 'stock' && '["xg-040g-md","xg-040g-mf"]' || '["xg-040g-md","xg-040g-mf","xg-040g-tf","zn504xg-d","hg5382a"]') }}
+        device: ${{ fromJSON(inputs.device != 'all' && format('["{0}"]', inputs.device) || inputs.device_variant == 'stock' && '["xg-040g-md","xg-040g-mf"]' || '["xg-040g-md","xg-040g-mf","xg-040g-tf","zn504xg-d","hg5382a","xr1710g"]') }}
     env:
       DEVICE: ${{ matrix.device }}
     # 发布 Release 需要写权限；仅授予 contents，其余 scope 自动为 none
@@ -174,6 +175,7 @@ jobs:
         case "$DEVICE" in
           zn504xg-d)           DTS_FILTER="zn504xg-d" ;;
           hg5382a)             DTS_FILTER="hg5382a" ;;
+          xr1710g)             DTS_FILTER="xr1710g" ;;
           *)                   DTS_FILTER="xg-040g" ;;
         esac
         DTS=$(grep -rl "linux,usable-memory-range" target/linux/airoha/dts/ 2>/dev/null | grep -i "$DTS_FILTER" | head -n1)
@@ -243,6 +245,11 @@ jobs:
             MODEL_TAG=HG5382A
             CONFIG_FILE=config/hg5382a-master.config
             ;;
+          xr1710g)
+            DEVICE_SUBTARGET=an7581
+            MODEL_TAG=XR1710G
+            CONFIG_FILE=config/xr1710g-master.config
+            ;;
           *) echo "::error::不支持的 device=$DEVICE"; exit 1 ;;
         esac
         case "$DEVICE" in
@@ -257,6 +264,10 @@ jobs:
           hg5382a)
             [ "$DEVICE_VARIANT" = "ubi" ] || { echo "::error::HG5382A 只有 ubi 布局（不要选 stock）"; exit 1; }
             DEVICE_SYMBOL=fiberhome_${DEVICE}-ubi
+            ;;
+          xr1710g)
+            [ "$DEVICE_VARIANT" = "ubi" ] || { echo "::error::XR1710G 只有 ubi 布局（不要选 stock）"; exit 1; }
+            DEVICE_SYMBOL=gemtek_${DEVICE}-ubi
             ;;
           *)
             case "$DEVICE_VARIANT" in
@@ -325,6 +336,15 @@ jobs:
               echo "- 自带网页救砖（Airoha Web U-Boot），按住 reset 上电、引导失败或引导菜单第 9 项进入"
               echo "- LAN1 为 2.5G（GPY211），LAN2~4 为千兆；PON 光口未支持"
               echo "- 没有出厂 MAC，网口使用随机 MAC"
+              echo "- **尚未实机验证**"
+              ;;
+            gemtek_xr1710g-ubi)
+              echo "- **本 Release 只有网页救砖 U-Boot，没有固件。** 固件用 [naoki66/ImmortalWrt-for-Gemtek-brightspeed](https://github.com/naoki66/ImmortalWrt-for-Gemtek-brightspeed/releases)，分区布局与这份 U-Boot 一致"
+              echo "- 原厂 BL2、U-Boot 锁着不动，由原厂 U-Boot 从 \`chainloader\` 分区（0x600000，1 MiB）启动这份 U-Boot"
+              echo "- 附件 \`*-chainloader-slot.bin\` 写进 \`chainloader\` 分区：已经在用 naoki66 / YYH2913 那份救砖 U-Boot 的，在它的恢复页 \`uboot\` 一栏上传即可；在用本 U-Boot 的，走恢复页「引导升级」"
+              echo "- 原厂 bootcmd（\`flash read 0x602100 ...; bootm\`）启动 0x2100 处的 FIT；从 0x600000 读的 bootcmd 经前面的 shim 启动，这条路只在 QEMU 里验证过"
+              echo "- factory 卷（MAC、Wi-Fi 校准）每次开机从 vendor 分区的 DSD 区核对重建，重建 UBI 不丢"
+              echo "- 恢复页只走两个千兆口（LAN3 / LAN4），10G 口 U-Boot 不驱动"
               echo "- **尚未实机验证**"
               ;;
           esac
@@ -1109,6 +1129,118 @@ jobs:
           echo "- \`$MIGRATE\` — tcboot 机器不拆机迁移用，走 spinand 页从 \`0x0\` 整片写入"
         } >> "$GITHUB_STEP_SUMMARY"
 
+    - name: Pack Chainloader Kit(打包链式加载 U-Boot)
+      # 原厂引导锁着的机型（XR1710G）没有 preloader / fip，上面那步跳过了。它要
+      # 刷的是 chainloader 分区的槽位镜像；顺带编出来的固件不发 —— 推荐用的是
+      # naoki66 那份，这里的只是槽位镜像挂着的设备定义。
+      if: steps.compile.outputs.status == 'success' && env.DEVICE == 'xr1710g'
+      run: |
+        set -euo pipefail
+        cd "$FIRMWARE_PATH"
+        SLOT=$(ls -1 *-chainloader-slot.bin 2>/dev/null | head -n1 || true)
+        [ -n "$SLOT" ] || { echo "::error::没有生成 *-chainloader-slot.bin"; exit 1; }
+        # 槽位的两个入口：0x0 的 uImage（从 0x600000 读的 bootcmd），0x2100 的 FIT
+        # （原厂 bootcmd）。naoki66 / YYH2913 那份 U-Boot 上传前也查这两处。
+        python3 - "$SLOT" <<'PY'
+        import struct, sys
+        d = open(sys.argv[1], 'rb').read()
+        if struct.unpack('>I', d[:4])[0] != 0x27051956:
+            sys.exit('0x0 处不是 uImage')
+        if d[0x2100:0x2104] != b'\xd0\x0d\xfe\xed':
+            sys.exit('0x2100 处不是 FIT')
+        if len(d) > 0x100000:
+            sys.exit('槽位镜像 %d 字节，超过 chainloader 分区的 1 MiB' % len(d))
+        print('%s: %d 字节，0x0 uImage、0x2100 FIT' % (sys.argv[1], len(d)))
+        PY
+
+        rm -f *-squashfs-sysupgrade.itb *-initramfs-recovery.itb *.manifest \
+              Packages.tar.gz custom-packages.txt
+        # 删了文件，校验和得重算；只算普通文件，目录会让 sha256sum 报错退出
+        find . -maxdepth 1 -type f ! -name sha256sums -printf '%P\0' | sort -z \
+          | xargs -0 sha256sum > sha256sums.new
+        mv sha256sums.new sha256sums
+
+        mkzip() {
+          python3 - "$1" <<'PYZIP'
+        import os, sys, zipfile
+        root = sys.argv[1]
+        with zipfile.ZipFile(root + '.zip', 'w', zipfile.ZIP_DEFLATED) as z:
+            for dirpath, _, files in os.walk(root):
+                for f in sorted(files):
+                    p = os.path.join(dirpath, f)
+                    z.write(p, p)
+        PYZIP
+        }
+
+        KIT="$RELEASE_TAG-bootloader"
+        mkdir -p "$KIT"
+        cp "$SLOT" "$KIT/"
+        {
+          echo "$MODEL_TAG 网页救砖 U-Boot"
+          echo "=================================================================="
+          echo "版本     : $RELEASE_TAG"
+          echo "编译分支 : $REPO_BRANCH"
+          echo "编译时间 : $DATE"
+          echo
+          echo "链接"
+          echo "----"
+          echo "  固件（推荐）       https://github.com/naoki66/ImmortalWrt-for-Gemtek-brightspeed/releases"
+          echo "  Github 工程        https://github.com/Loong1996/ImmortalWrt-Airoha"
+          echo "  刷机教程           https://loong1996.github.io/ImmortalWrt-Airoha/recovery-guide.html"
+          echo "  U-Boot 源码        https://github.com/Loong1996/immortalwrt"
+          echo "  QQ 群              1092754041"
+          echo
+          echo "包里是什么"
+          echo "----------"
+          echo "  $SLOT"
+          echo "      写进 chainloader 分区（flash 0x600000，1 MiB）的整份镜像。"
+          echo "      0x0     uImage 包着的小段 shim：给从 0x600000 读的 bootcmd 用"
+          echo "      0x2100  FIT，里面是 U-Boot：原厂 bootcmd（flash read 0x602100 ...;"
+          echo "              bootm）直接启动它"
+          echo
+          echo "这台只出 U-Boot。原厂 BL2 与 U-Boot 锁着不动，由原厂 U-Boot 启动这一份；"
+          echo "固件请用上面 naoki66 的那份，分区布局与这份 U-Boot 一致。"
+          echo
+          echo "怎么刷"
+          echo "------"
+          echo "* 机器在用 naoki66 / YYH2913 那份救砖 U-Boot：进它的恢复页"
+          echo "  （http://192.168.255.1），上传目标选 uboot，传这个文件。"
+          echo "* 机器已经在用本 U-Boot：恢复页「引导升级」里传这个文件，不要勾「重建 UBI」。"
+          echo "* 只想先试不写闪存：原厂 U-Boot 串口里"
+          echo "      tftpboot 0x81800000 $SLOT"
+          echo "      bootm 0x81802100"
+          echo
+          echo "进恢复页"
+          echo "--------"
+          echo "* 地址 http://192.168.1.1，网线插 LAN3 或 LAN4（千兆口；10G 口 U-Boot 不驱动），"
+          echo "  电脑自动获取地址即可。"
+          echo "* 按住 reset 上电；或在 naoki66 固件的 LuCI 里点「重启进 U-Boot」；"
+          echo "  引导失败也会自己停在恢复页。"
+          echo
+          echo "提醒"
+          echo "----"
+          echo "* 从 YYH2913 那份 U-Boot 换过来，第一次开机会把 U-Boot 环境换成本 U-Boot"
+          echo "  的默认值（MAC 保留）。"
+          echo "* 本 U-Boot 认的 UBI 是 0x700000 起 0x1b700000 的那一种（YYH2913 叫它"
+          echo "  UBI 2.0，naoki66 的固件就是它）。1.0 / 1.5 布局的机器在恢复页勾「重建 UBI」"
+          echo "  连同固件一起刷一次；factory 卷（MAC、Wi-Fi 校准）会从 vendor 分区的 DSD 区"
+          echo "  自动重建，不会丢。"
+          echo "* 原厂 bootcmd 改成过从 0x600000 读的（早先的 W1700K 安装器会这么改），经"
+          echo "  0x0 处的 shim 启动 —— 这条路只在 QEMU 里验证过。稳妥起见改回原厂的："
+          echo "      setenv bootcmd 'flash read 0x602100 0x4000000 \$loadaddr; bootm'"
+          echo "      saveenv"
+          echo "* 尚未实机验证。刷之前在原厂 U-Boot 里先用上面的 tftpboot 试一次。"
+        } > "$KIT/说明与链接.txt"
+        mkzip "$KIT"
+        rm -rf "$KIT"
+        ls -l
+        {
+          echo "### 🔧 链式加载 U-Boot"
+          echo "- \`$SLOT\` — 写进 chainloader 分区"
+          echo "- \`$KIT.zip\` — 同一个文件加说明"
+          echo "- 固件不发布，用 naoki66/ImmortalWrt-for-Gemtek-brightspeed 的"
+        } >> "$GITHUB_STEP_SUMMARY"
+
     - name: Upload Firmware To Artifact(将固件上传到Artifact)
       if: steps.compile.outputs.status == 'success' && env.PUBLISH_RELEASE != 'true'
       uses: actions/upload-artifact@v7
@@ -1139,7 +1271,7 @@ jobs:
         prerelease: ${{ env.IS_PRERELEASE == 'true' }}
         artifacts: ${{ env.FIRMWARE_PATH }}/*
         body: |
-          **This is OpenWrt Firmware for ${{ env.MODEL_TAG }}（内存 ${{ env.DRAM_LABEL }} · ${{ env.VARIANT_LABEL }} 变体）**
+          **${{ env.DEVICE == 'xr1710g' && 'Web recovery U-Boot only, no firmware:' || 'This is OpenWrt Firmware for' }} ${{ env.MODEL_TAG }}（内存 ${{ env.DRAM_LABEL }} · ${{ env.VARIANT_LABEL }} 变体）**
           ### 🧠 内存容量
           ${{ env.DRAM_NOTE }}
           ### 📒 固件信息(${{ env.MODEL_TAG }})
@@ -1188,6 +1320,10 @@ jobs:
         # pre-release 与只传 Artifact 的构建软件包组合是定制的，不该成为选包页的默认参照
         if [ "$IS_PRERELEASE" = "true" ]; then
           echo "::notice::非正式发布（分支 $REPO_BRANCH，发布方式 $RELEASE_MODE），跳过选包页更新"; exit 0
+        fi
+        # XR1710G 只出 U-Boot，配置里一个软件包都没选，拿它做选包索引就全空了
+        if [ "$DEVICE" = "xr1710g" ]; then
+          echo "::notice::XR1710G 只出 U-Boot，不更新选包页"; exit 0
         fi
         # 索引按分支一份，不分机型。all 时几个 job 会互相覆盖，只让 MD 发布
         if [ "${{ inputs.device }}" = "all" ] && [ "$DEVICE" != "xg-040g-md" ]; then
