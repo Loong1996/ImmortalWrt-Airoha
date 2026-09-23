@@ -2,7 +2,7 @@ name: ImmortalWrt-Airoha
 
 # 让 Actions 列表直接显示本次选了什么，省得点进去翻日志里的 env 块。
 # 必须写成一行：折叠标量会把缩进更深的续行当字面量，在 ${{ }} 中间插进换行。
-run-name: "${{ inputs.device == 'all' && '全部机型' || inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || inputs.device == 'xg-040g-tf' && 'XG-040G-TF' || inputs.device == 'zn504xg-d' && 'ZN504XG-D' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}${{ inputs.release == 'prerelease' && ' · pre-release' || inputs.release == 'artifact' && ' · 不发布' || '' }}"
+run-name: "${{ inputs.device == 'all' && '全部机型' || inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || inputs.device == 'xg-040g-tf' && 'XG-040G-TF' || inputs.device == 'zn504xg-d' && 'ZN504XG-D' || inputs.device == 'hg5382a' && 'HG5382A' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}${{ inputs.release == 'prerelease' && ' · pre-release' || inputs.release == 'artifact' && ' · 不发布' || '' }}"
 
 on:
   workflow_dispatch:
@@ -23,6 +23,7 @@ on:
           - xg-040g-mf
           - xg-040g-tf
           - zn504xg-d
+          - hg5382a
       device_variant:
         description: '设备变体（ubi 推荐：作者魔改 U-Boot，带网页救砖；stock 保留原厂引导）'
         required: true
@@ -93,12 +94,12 @@ jobs:
     name: ${{ matrix.device }}
     runs-on: ubuntu-latest
     # 选 all 时每个机型一个 job 并行编；单选时矩阵里只有这一个机型。
-    # TF 与 ZN504 只有 ubi 布局，stock 下的 all 不带它们。
+    # TF、ZN504 与 HG5382A 只有 ubi 布局，stock 下的 all 不带它们。
     # 一个机型失败不取消其他机型。
     strategy:
       fail-fast: false
       matrix:
-        device: ${{ fromJSON(inputs.device != 'all' && format('["{0}"]', inputs.device) || inputs.device_variant == 'stock' && '["xg-040g-md","xg-040g-mf"]' || '["xg-040g-md","xg-040g-mf","xg-040g-tf","zn504xg-d"]') }}
+        device: ${{ fromJSON(inputs.device != 'all' && format('["{0}"]', inputs.device) || inputs.device_variant == 'stock' && '["xg-040g-md","xg-040g-mf"]' || '["xg-040g-md","xg-040g-mf","xg-040g-tf","zn504xg-d","hg5382a"]') }}
     env:
       DEVICE: ${{ matrix.device }}
     # 发布 Release 需要写权限；仅授予 contents，其余 scope 自动为 none
@@ -172,6 +173,7 @@ jobs:
         # 留给 U-Boot 的 fixup 去填。
         case "$DEVICE" in
           zn504xg-d)           DTS_FILTER="zn504xg-d" ;;
+          hg5382a)             DTS_FILTER="hg5382a" ;;
           *)                   DTS_FILTER="xg-040g" ;;
         esac
         DTS=$(grep -rl "linux,usable-memory-range" target/linux/airoha/dts/ 2>/dev/null | grep -i "$DTS_FILTER" | head -n1)
@@ -236,6 +238,11 @@ jobs:
             MODEL_TAG=ZN504XG-D
             CONFIG_FILE=config/zn504xg-d-master.config
             ;;
+          hg5382a)
+            DEVICE_SUBTARGET=an7581
+            MODEL_TAG=HG5382A
+            CONFIG_FILE=config/hg5382a-master.config
+            ;;
           *) echo "::error::不支持的 device=$DEVICE"; exit 1 ;;
         esac
         case "$DEVICE" in
@@ -246,6 +253,10 @@ jobs:
           zn504xg-d)
             [ "$DEVICE_VARIANT" = "ubi" ] || { echo "::error::ZNXT 只有 ubi 布局（不要选 stock）"; exit 1; }
             DEVICE_SYMBOL=znxt_${DEVICE}-ubi
+            ;;
+          hg5382a)
+            [ "$DEVICE_VARIANT" = "ubi" ] || { echo "::error::HG5382A 只有 ubi 布局（不要选 stock）"; exit 1; }
+            DEVICE_SYMBOL=fiberhome_${DEVICE}-ubi
             ;;
           *)
             case "$DEVICE_VARIANT" in
@@ -306,6 +317,15 @@ jobs:
               echo "- 自带网页救砖（Airoha Web U-Boot），按住 reset 上电、引导失败或引导菜单第 9 项进入"
               echo "- 硬件按 XG-040G-MD 描述（LAN1 为 2.5G，LAN2~4 为千兆），没有 USB"
               echo "- 没有出厂 MAC，网口使用随机 MAC"
+              ;;
+            fiberhome_hg5382a-ubi)
+              echo "- OpenWrt U-Boot 布局：bl2 128K + ubi（并口 NAND，Winbond W29N02KV 256 MiB）"
+              echo "- **会替换引导程序**，附件 \`preloader.bin\` 与 \`bl31-uboot.fip\` 需经 USB-TTL 刷入（preloader 写在 NAND 0x800）"
+              echo "- 附件 \`*-recovery.itb\` 为 initramfs 救援镜像"
+              echo "- 自带网页救砖（Airoha Web U-Boot），按住 reset 上电、引导失败或引导菜单第 9 项进入"
+              echo "- LAN1 为 2.5G（GPY211），LAN2~4 为千兆；PON 光口未支持"
+              echo "- 没有出厂 MAC，网口使用随机 MAC"
+              echo "- **尚未实机验证**"
               ;;
           esac
           echo LAYOUTEOF
