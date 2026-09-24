@@ -56,7 +56,7 @@
 ## 三、pbs05 兼容性遗留
 
 - [ ] ZN515XG-D：README 把它列在支持机型里，因为教程写的是「直接用 XG-040G-MD 的固件」。它比 MD 多一块 MT7916 与第二个 USB，MD 固件用不上；装着 pbs05 的 ZN515 U-Boot 时，他的恢复页会以「does not match this board」拒收 MD 固件。待定：README 是否改成「ZN515XG-D（用 XG-040G-MD 固件）」
-- [ ] 换 U-Boot 后清环境变量：两边都把环境存在 `ubootenv`、`ubootenv2`，换 U-Boot 后新旧变量混在一起。现在没有自动重置，从 pbs05 换过来时 `bootcmd`、`boot_production` 仍是他的，首次开机初始化被跳过（Nokia 上不建 `ri`、`bosa`）。待定：只写进教程（换完先执行菜单里的「Reset all settings to factory defaults」），还是让 U-Boot 认出外来环境后自动重置
+- [ ] 换 U-Boot 后清环境变量：两边都把环境存在 `ubootenv`、`ubootenv2`，换 U-Boot 后新旧变量混在一起。主线没有自动重置，本分支的 XR1710G 有整套重置（`web_uboot_foreign_env=reset`）；其它机型从 pbs05 换过来时 `bootcmd`、`boot_production` 仍是他的，首次开机初始化被跳过（Nokia 上不建 `ri`、`bosa`）。待定：只写进教程（换完先执行菜单里的「Reset all settings to factory defaults」），还是让 U-Boot 认出外来环境后自动重置
 - [ ] ZN504XG-D：整片备份里 `reservearea` 的偏移不明，原厂内核运行时才算分区。要原厂的 `/proc/mtd`，或做一个按内容找的工具（`reservearea` 的 `0x141010` 处是 `ZN504XG-D`，只在那一段没有坏块时成立）
 - [ ] 是否告诉 pbs05：PonWrt 内核缺 W29N02KVSIAF 的完整 ID，按 64 字节 OOB 算成 ECC4/spare 16，读不了他 U-Boot 按 spare 28 写的页，在 SIAF 板上起不来——待定
 
@@ -86,3 +86,18 @@
 - TCP 发送窗口补丁 204；DHCP 开机拔插一次端口、REQUEST 回 NAK
 - 第一节的并口 NAND 备份与刷回原厂；带 ECC 读页时 `dma_unmap` 改为等全部扇区 DECDONE 之后
 - 教程线上版要跑 `publish-pages.sh` 才更新
+
+## 六、XR1710G / W1700K（本分支）
+
+本分支是主线加一个提交（immortalwrt 的 `main-airoha-xr1710g` 同样如此），主线不带这两台。W1700K 的设备支持来自上游 ImmortalWrt，主线照旧保留，这里只有我们对它的改动。
+
+已写好、没上真机（immortalwrt `eb5e4ea753`）：
+
+- 网页写引导改为先 FIP 后 BL2（`httpd_flash_step()`）：XR1710G 从厂商引导迁移时 FIP 写失败，厂商引导仍在
+- 串口菜单 TFTP 写 chainloader 槽前先跑 `chaincheck`，与网页上传同一套检查（坏块、大小、uImage/FIT、厂商 bootcmd 读取长度）；`web_uboot_envver` 升到 11，已装机器的 `boot_tftp_write_chain` 随之刷新
+- W1700K 的 `fw_setenv` 改用 16 KiB 环境。已装机器的 `/etc/config/ubootenv` 是首次开机生成的，不会自己变，要删掉重新生成
+- `chain_check()` 在擦写前比对原厂 bootcmd 读的长度与地址
+
+遗留：
+
+- [ ] `chain_vendor_env` 取窗口里第一个 `bootcmd=`，不区分哪份环境是当前有效的；依赖厂商布局，没证实

@@ -70,7 +70,7 @@ usage() {
 
   -b, --branch <分支>     源码分支，默认 master-airoha（唯一维护的线）
   -v, --variant <变体>    设备变体 ubi|stock，默认 ubi
-  -D, --device <机型>     xg-040g-md|xg-040g-mf|xg-040g-tf|zn504xg-d|hg5382a，默认 xg-040g-md
+  -D, --device <机型>     xg-040g-md|xg-040g-mf|xg-040g-tf|zn504xg-d|hg5382a|xr1710g，默认 xg-040g-md
   -d, --dram <容量>       内存容量 auto|512M|1G|2G，默认 auto（自适应）
   -p, --packages <串>     附加软件包，格式同选包页：空格分隔，前缀 - 表示移除
   -j, --jobs <n>          并行度，默认按 CPU 与内存自动取较小值
@@ -200,8 +200,14 @@ case "$DEVICE" in
         DEVICE_SYMBOL="fiberhome_hg5382a-ubi"
         [ "$VARIANT" = "ubi" ] || die "FiberHome HG5382A 只有 ubi 布局（不要传 -v stock）"
         ;;
+    xr1710g)
+        DEVICE_SUBTARGET="an7581"
+        CONFIG_FILE="config/xr1710g-master.config"
+        DEVICE_SYMBOL="gemtek_xr1710g-ubi"
+        [ "$VARIANT" = "ubi" ] || die "Gemtek XR1710G 只有 ubi 布局（不要传 -v stock）"
+        ;;
     *)
-        die "不支持的机型: $DEVICE（可选 xg-040g-md|xg-040g-mf|xg-040g-tf|zn504xg-d|hg5382a）"
+        die "不支持的机型: $DEVICE（可选 xg-040g-md|xg-040g-mf|xg-040g-tf|zn504xg-d|hg5382a|xr1710g）"
         ;;
 esac
 
@@ -311,6 +317,7 @@ if [ "$DRAM_SIZE" != "auto" ]; then
     case "$DEVICE" in
         zn504xg-d)           DTS_FILTER="zn504xg-d" ;;
         hg5382a)             DTS_FILTER="hg5382a" ;;
+        xr1710g)             DTS_FILTER="xr1710g" ;;
         *)                   DTS_FILTER="xg-040g" ;;
     esac
     DTS="$(grep -rl "linux,usable-memory-range" target/linux/airoha/dts/ 2>/dev/null | grep -i "$DTS_FILTER" | head -n1)"
@@ -493,6 +500,8 @@ case "$DEVICE_SYMBOL" in
         echo "刷机用: factory-kernel.bin + factory-rootfs.bin" ;;
     nokia_xg-040g-md-ubi|nokia_xg-040g-mf-ubi|nokia_xg-040g-tf-ubi|znxt_zn504xg-d-ubi|fiberhome_hg5382a-ubi)
         echo "刷机用: preloader.bin + bl31-uboot.fip（USB-TTL 刷入）、*-recovery.itb 救援镜像" ;;
+    gemtek_xr1710g-ubi)
+        echo "刷机用: chainloader-slot.bin（写 chainloader 分区）；固件用 naoki66/ImmortalWrt-for-Gemtek-brightspeed 的" ;;
     nokia_xg-040g-mf)
         echo "刷机用: factory-kernel.bin + factory-rootfs.bin" ;;
 esac
