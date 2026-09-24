@@ -294,7 +294,7 @@ details.ver .nw{padding:0 .95rem .95rem;margin:0}
       <tr><td><b>Nokia XG-140G-MD</b></td><td>Airoha AN7581</td><td>XG-040G-MD</td><td><span class="st ok">实测可用</span></td><td>同一套参考设计，直接用 XG-040G-MD 的固件；设备详情页会显示为 XG-040G-MD</td></tr>
       <tr><td><b>Nokia XG-140G-MF</b></td><td>Airoha AN7583</td><td>XG-040G-MF</td><td><span class="st ok">实测可用</span></td><td>同一套参考设计，直接用 XG-040G-MF 的固件；设备详情页会显示为 XG-040G-MF</td></tr>
       <tr><td><b>Nokia XG-040G-TF</b></td><td>Airoha AN7581</td><td>XG-040G-TF</td><td><span class="st ok">实机验证</span></td><td>硬件与 MD 相同，但芯片烧了安全启动密钥，BL2 和 U-Boot 都要带证书：必须用 XG-040G-TF 自己的两个引导文件，<b>不能用 MD 的</b>。面板灯与网口灯是蓝色的（光信号灯仍是红的）</td></tr>
-      <tr><td><b>ZNXT ZN504XG-D</b></td><td>Airoha AN7581</td><td>ZN504XG-D</td><td><span class="st ok">实机验证</span></td><td>专用固件：闪存与指示灯（蓝色）都和 MD 不同，没有 USB，也没有出厂 MAC</td></tr>
+      <tr><td><b>ZNXT ZN504XG-D</b></td><td>Airoha AN7581</td><td>ZN504XG-D</td><td><span class="st ok">实机验证</span></td><td>专用固件：闪存与指示灯（蓝色）都和 MD 不同，没有 USB；出厂 MAC 在 <code>factory</code> 卷，写回原厂 <code>reservearea</code> 备份即可</td></tr>
       <tr><td><b>ZNXT ZN515XG-D</b></td><td>Airoha AN7581</td><td>XG-040G-MD</td><td><span class="st ok">实测可用</span></td><td>同上，直接用 XG-040G-MD 的固件</td></tr>
       <tr><td><b>FiberHome HG5382A</b></td><td>Airoha AN7581</td><td>HG5382A</td><td><span class="st wip">待实机验证</span></td><td>专用固件：闪存是并口 NAND（其它机型都是 SPI NAND），BL2、U-Boot、内核都是它自己的；指示灯蓝色，没有出厂 MAC。原厂备份请在原厂系统里做。<b>从原厂或 pbs05/uboot-an758x 迁移过来，第一次进网页 U-Boot 必须勾「重建 UBI」</b>，连同固件与 FIP 一次写完：它们留下的 UBI 用的是另一种 ECC 码字，这份 U-Boot 读不出，只写 FIP 的话开机会反复报 <code>ECC error</code></td></tr>
       <tr><td><b>Brightspeed / Gemtek XR1710G</b></td><td>Airoha AN7581</td><td>XR1710G</td><td><span class="st wip">待实机验证</span></td><td><b>只出网页 U-Boot</b>：原厂引导锁着不动，U-Boot 写在 <code>chainloader</code> 分区、由原厂 U-Boot 启动，下载里的 <code>…-chainloader-slot.bin</code> 就是它。另附 <code>preloader.bin</code> + <code>bl31-uboot.fip</code>，是另一种启动方式（试验）：换掉原厂 BL2、由我们的 BL2 启动，UBI 仍在 0x700000、固件不变；先用 X 模式只进内存试，BootROM 认我们的 BL2 才能用，写之前先备份 0x0–0x20000。固件用 <a href="https://github.com/naoki66/ImmortalWrt-for-Gemtek-brightspeed/releases" target="_blank" rel="noopener">naoki66/ImmortalWrt-for-Gemtek-brightspeed</a>。不用接串口：在用 naoki66 / YYH2913 那份救砖 U-Boot 的，在它的恢复页 <code>uboot</code> 一栏上传即可；之后恢复页在 <code>192.168.1.1</code>，网线插 LAN3 / LAN4。factory 卷（MAC、Wi-Fi 校准）从 vendor 分区的 DSD 区自动重建，重建 UBI 不丢</td></tr>
@@ -315,7 +315,7 @@ details.ver .nw{padding:0 .95rem .95rem;margin:0}
       <li><span class="box"></span><div><b>网线一根 + 一台电脑</b><div class="sub">只用来连这台路由器，不需要能上外网，插哪个口见<a href="#connect">「连上恢复页」</a>。固件先在<a href="#files">上方</a>下好。页面按桌面浏览器设计，手机也能用。</div></div></li>
       <li><span class="box"></span><div><b>USB 转 TTL 串口模块<span class="only">仅首次迁移</span></b><div class="sub">3.3V 电平的那种（不是 RS232），CH340 一类都行，带 3 根杜邦线。之后日常用网页就不再需要它。</div></div></li>
       <li><span class="box"></span><div><b>支持 Xmodem 发送的串口终端<span class="only">仅首次迁移</span></b><div class="sub">Windows 上 MobaXterm、SecureCRT、Xshell 都自带「发送文件 → Xmodem」；macOS / Linux 用 <code>minicom</code>，或装 <code>lrzsz</code> 后在 <code>screen</code> 里用 <code>sx</code>。</div></div></li>
-      <li><span class="box"></span><div><b>先做一次整机 flash 备份<span class="only">仅首次迁移</span></b><div class="sub">首次迁移会清空原厂分区，其中 <code>ri</code>（MAC / 序列号）和 <code>bosa</code>（光模块校准）是这台机器独有的、没有第二份。接上恢复页之后在<a href="#backup">「2.3 原厂数据备份」</a>里整片下下来。备份的 <code>all_flash.bin</code> 以后能在网页里整片刷回原厂。</div></div></li>
+      <li><span class="box"></span><div><b>先做一次整机 flash 备份<span class="only">仅首次迁移</span></b><div class="sub">首次迁移会清空原厂分区，其中 <code>ri</code>（MAC / 序列号）和 <code>bosa</code>（光模块校准）是这台机器独有的（ZN504XG-D 是 <code>reservearea</code>）、没有第二份。接上恢复页之后在<a href="#backup">「2.3 原厂数据备份」</a>里整片下下来。备份的 <code>all_flash.bin</code> 以后能在网页里整片刷回原厂。</div></div></li>
     </ul>
   </section>
 
@@ -433,7 +433,7 @@ Handing out DHCP leases from 192.168.1.1</div>
     <div class="mock fixed"><div class="mock-bar"><i></i><i></i><i></i><span>192.168.1.1</span><button type="button" class="replay" id="migrate-replay" hidden>▶ 自动演示</button></div><iframe title="引导升级演示：选三样、确认、写入完毕" data-state="demo-migrate"></iframe></div>
     <div class="note danger"><b>写入期间不能断电。</b></div>
     <p>重启后灯灭了很久还没进系统：小概率是卡在了 <code>Press x</code> 等按键，直接重新上电即可。</p>
-    <div class="note">重建 UBI 会清掉出厂 MAC，设备改用随机 MAC。想要回真实 MAC，用<a href="#vol">「按卷写入」</a>写回备份的 <code>ri</code>。</div>
+    <div class="note">重建 UBI 会清掉出厂 MAC，设备改用随机 MAC。想要回真实 MAC，用<a href="#vol">「按卷写入」</a>写回备份的 <code>ri</code>（ZN504XG-D 是 <code>reservearea</code>，写进 <code>factory</code> 卷）。从 pbs05 迁来的 ZN504XG-D，重建前先在「备份下载」里存下 <code>factory</code> 卷。</div>
   </section>
 
   <div class="chap" id="ch3"><span class="cn">3</span><b>日常使用</b><small>只要浏览器</small></div>
@@ -492,7 +492,7 @@ Handing out DHCP leases from 192.168.1.1</div>
 
   <section id="vol">
     <div class="sec-head"><span class="ic i1"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4zM8 7v10M16 7v10"/></svg></span><h2><span class="no">3.4</span>补回出厂 MAC</h2></div>
-    <p class="sec-sub">重建过 UBI 或点过菜单第 8 项，出厂 MAC 就没了，设备在用随机 MAC。把备份的 <code>ri</code> 写回去即可，不用重刷固件。</p>
+    <p class="sec-sub">重建过 UBI 或点过菜单第 8 项，出厂 MAC 就没了，设备在用随机 MAC。把备份的 <code>ri</code>（ZN504XG-D 是 <code>reservearea</code>，写进 <code>factory</code> 卷）写回去即可，不用重刷固件。</p>
     <div class="stepper" id="vol-steps">
       <button type="button" class="stp" data-k="0"><span class="dot"><span>1</span></span><span class="lb"><b>选 <code>ri</code> 备份</b><small>左栏「按卷写入」→「出厂数据」；<code>bosa</code> 可一起选</small></span></button>
       <span class="arr" aria-hidden="true"><i></i></span>
@@ -663,7 +663,7 @@ Handing out DHCP leases from 192.168.1.1</div>
         <li>只有「刷回原厂」断网会留下写了一半的闪存；别的页断网，设备会自己把这次写完。</li>
       </ol></details>
       <details><summary>网能用，但 MAC 地址不是机器背面那个</summary><ol>
-        <li><b>出厂 MAC 被清了</b>（重建过 UBI，或点过菜单第 8 项），设备在用随机 MAC。用<a href="#vol">「按卷写入」</a>把备份的 <code>ri</code> 写回去。</li>
+        <li><b>出厂 MAC 被清了</b>（重建过 UBI，或点过菜单第 8 项），设备在用随机 MAC。用<a href="#vol">「按卷写入」</a>把备份的 <code>ri</code>（ZN504XG-D 是 <code>reservearea</code>，写进 <code>factory</code> 卷）写回去。</li>
       </ol></details>
     </div>
   </section>

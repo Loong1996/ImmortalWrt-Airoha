@@ -46,7 +46,7 @@ Release 的标题、正文与 tag 都会标出本次用的机型与变体，例�
 * 升级用 `sysupgrade.itb`
 * 原厂 `ri` 与 `bosa` 由官方转换流程转存为同名 UBI 卷，MAC 得以保留
 * `ri` 的读取由 preinit 钩子 [`90_airoha_ubi_mac`](https://github.com/Loong1996/immortalwrt/blob/master-airoha/target/linux/airoha/base-files/lib/preinit/90_airoha_ubi_mac) 在用户态完成，**没转存 `ri` 卷也能正常启动**（退化为随机 MAC，生成一次后固化在 `/etc/airoha-ubi-mac`，`sysupgrade` 也保留，所以不会每次开机都变）；转存过则拿到真实硬件 MAC。丢了可以在网页救砖的「按卷写入」页把备份写回去
-* MD、MF、TF 都走这个钩子。ZN504XG-D 原厂没有 `ri` 卷，它用的就是那个固化下来的随机 MAC
+* MD、MF、TF 都走这个钩子。ZN504XG-D 没有 `ri` 卷，出厂 MAC 在 `factory` 卷 `0x141024` 处（12 个十六进制字符）：这个卷是原厂 `reservearea` 分区的原样拷贝，与 pbs05/ponwrt 的同名卷通用，没写入时同样退回固化的随机 MAC
 
 UBI 里的卷（`fip` 也在其中，不是独立分区）：
 
