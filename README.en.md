@@ -21,7 +21,7 @@ Brightspeed / Gemtek XR1710G gets the web U-Boot only (its stock bootloader is l
 ## Before you flash
 
 > [!WARNING]
-> **Keep a USB-TTL serial adapter ready, in case you need to recover.** Back up the whole flash first. `ri` (MAC, serial number) and `bosa` (optical calibration) are unique to each unit. Lose them and there is nowhere to get them back. On the ZN504XG-D the same data is in `reservearea`.
+> **Keep a USB-TTL serial adapter ready, in case you need to recover.** Back up the whole flash first. `ri` (MAC, serial number) and `bosa` (optical calibration) are unique to each unit. Lose them and there is nowhere to get them back. On the ZN504XG-D the same data is in `reservearea`. On the HG5382A, build the `factory` volume image from the stock backup with [fiberhome-factory](https://github.com/pbs05/fiberhome-factory).
 
 - [Get the stock super password](https://www.right.com.cn/FORUM/thread-8440823-1-1.html)
 - [Teardown, flashing, setup, and stock partition backup](https://www.right.com.cn/forum/thread-8467912-1-1.html)

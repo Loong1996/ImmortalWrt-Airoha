@@ -21,7 +21,7 @@ Brightspeed / Gemtek XR1710G 只出网页 U-Boot（原厂引导锁着，U-Boot �
 ## 刷机之前
 
 > [!WARNING]
-> **准备好 USB-TTL 串口，随时准备救砖。** 刷之前务必做整片 flash 备份：`ri`（MAC、序列号）和 `bosa`（光模块校准）每台机器独有，丢了没有地方找回；ZN504XG-D 对应的是 `reservearea`。
+> **准备好 USB-TTL 串口，随时准备救砖。** 刷之前务必做整片 flash 备份：`ri`（MAC、序列号）和 `bosa`（光模块校准）每台机器独有，丢了没有地方找回；ZN504XG-D 对应的是 `reservearea`，HG5382A 用 [fiberhome-factory](https://github.com/pbs05/fiberhome-factory) 从原厂备份生成 `factory` 卷镜像。
 
 - [获取超级密码](https://www.right.com.cn/FORUM/thread-8440823-1-1.html)
 - [拆机、刷机、配置、原厂分区备份教程](https://www.right.com.cn/forum/thread-8467912-1-1.html)
