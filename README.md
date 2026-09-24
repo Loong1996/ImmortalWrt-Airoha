@@ -10,7 +10,7 @@
 
 ## 支持机型
 
-Nokia XG-040G-MD、Nokia XG-040G-MF、Nokia XG-140G-MD、Nokia XG-140G-MF、Nokia XG-040G-TF、ZNXT ZN504XG-D、ZNXT ZN515XG-D、FiberHome HG5382A（BL2 与 U-Boot 已实机启动；从原厂或 pbs05/uboot-an758x 迁移，首次须在网页 U-Boot 勾「重建 UBI」连同固件与 FIP 一起刷）
+Nokia XG-040G-MD、Nokia XG-040G-MF、Nokia XG-140G-MD、Nokia XG-140G-MF、Nokia XG-040G-TF、ZNXT ZN504XG-D、ZNXT ZN515XG-D、FiberHome HG5382A（闪存按 ECC4 读写，与 pbs05/uboot-an758x 相同，改 ECC4 后待实机验证；从原厂迁移首次须在网页 U-Boot 勾「重建 UBI」连同固件与 FIP 一起刷，从 pbs05 迁移可不重建；装过本项目 ECC8 版本的须像首次迁移一样经串口换引导并重建 UBI）
 
 ![网页 U-Boot](img/web-uboot.png)
 

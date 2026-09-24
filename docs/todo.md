@@ -25,7 +25,7 @@
 
 要一台还是原厂系统的 HG5382A，串口接好。用 CI 编出的 HG5382A 的 `preloader.bin` 与 `bl31-uboot.fip`，按教程第二章经 BootROM 串口载入内存，闪存不动。
 
-- [ ] 串口开机日志里 `EN7581 parallel NAND registered: ECC8/512, spare 28/sector`；打开页面后有 `sample page(s) for the stock flash format` 和 `format(s) tried in … ms, … decode every sample`
+- [ ] 串口开机日志里 `EN7581 parallel NAND registered: ECC4/512, spare 28/sector`；打开页面后有 `sample page(s) for the stock flash format` 和 `format(s) tried in … ms, … decode every sample`
 - [ ] 「备份下载 → 原厂格式」显示已识别，记下参数；再用原厂系统 dd 的整片备份点「核对」，应一致
 - [ ] 「原始区段」整片下载，文件 285212672 字节（272 MiB），`/dumpinfo` 没有读取失败的块。若串口出现 `EN7581 read DMA incomplete`，说明自定义扇区整页 DMA 在并口上不成立，要改回按格式化扇区读、页尾 16 字节另用 PIO 读
 - [ ] 把这份带 OOB 的整片备份用「刷回原厂」写回，拔电重启能进原厂系统
@@ -47,18 +47,13 @@
   - C：维持现状，只改注释并在教程里说明
 - 带 OOB 的原样写回会把原厂备份里列 2048 的出厂标记一起写回去，这一点不受影响
 
-## 二、HG5382A：ECC4/ECC8 自动兼容（W29N02KVSIAF）
+## 二、HG5382A：改为 ECC4，与 pbs05 一致（待真机）
 
-原厂和我们都用 ECC8，pbs05 的 BL2 与 U-Boot 用 ECC4；两边 spare 都是 28、驱动相同，只差校验码长度。PonWrt 内核没有这颗芯片的完整 ID，在 SIAF 板上本来就挂不上 UBI，所以 pbs05 写过的 SIAF 板上基本只有他 U-Boot 写的 ECC4 页。目标：这种 UBI 不用重建，`factory` 卷原地保留。
+W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补丁 904）都从 ECC8 改为 ECC4、spare 28，与 pbs05 的 BL2 和 U-Boot 相同（数据取反、FDM 8 字节纳入 ECC 本来就一致）。pbs05 自己的内核缺这颗的完整 ID，按 spare 16 读，所以他那边内核读不了他 U-Boot 写的页；我们的 904 保留完整 ID。原厂是 ECC8，照旧要重建 UBI。
 
-- [ ] U-Boot：
-  - 只在 SIAF（ID `ef:da:10:95:06`）上开启，东芝等其它芯片固定 ECC8
-  - 挂 UBI 前读前几个好块的第一页（EC 头），先按 ECC8、再按 ECC4，以 `UBI#` 标记与头 CRC 判定；全空默认 ECC8
-  - 认出 ECC4 就把驱动自己的格式切成 ECC4（可复用 `airoha_nfc_apply()`），但第一个块（BL2）读写固定 ECC8
-  - 启动内核前往 DTB 的 nand 节点写 `nand-ecc-strength`；主线 mtk_nand 以它为准，内核不改代码（要核实）
-  - 重建 UBI 时回到 ECC8
-- [ ] BL2（ATF 补丁 100）：找 `fip` 卷时同样识别。风险最高，放最后
-- [ ] 上真机：一块 pbs05 写过的 SIAF 板、一块我们写过的 SIAF 板；东芝板确认不受影响
+- [ ] 上真机：串口载入新 preloader 与 fip，BootROM 能起 ECC4 写的 BL2（pbs05 的板子上一直是 ECC4，推断没问题）；日志 `ECC4/512, spare 28/sector`
+- [ ] 一块 pbs05 写过的 SIAF 板：不重建 UBI 能挂上，`factory` 卷原地可读
+- [ ] 装过本项目 ECC8 版本的机器只能走串口换引导再重建 UBI（旧 U-Boot 按 ECC8 写 fip，新 BL2 读不出），Release 说明与教程已写；看要不要在网页上拦
 
 ## 三、pbs05 兼容性遗留
 

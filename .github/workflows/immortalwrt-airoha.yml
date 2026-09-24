@@ -325,8 +325,10 @@ jobs:
               echo "- 自带网页救砖（Airoha Web U-Boot），按住 reset 上电、引导失败或引导菜单第 9 项进入"
               echo "- LAN1 为 2.5G（GPY211），LAN2~4 为千兆；PON 光口未支持"
               echo "- 没有出厂 MAC，网口使用随机 MAC"
-              echo "- **从原厂或 pbs05/uboot-an758x 迁移，首次进网页 U-Boot 必须勾「重建 UBI」**，连同固件与 FIP 一次写完：它们留下的 UBI 用的是另一种 ECC 码字，本 U-Boot 读不出（开机反复报 \`ECC error\`）"
-              echo "- BL2 与 U-Boot 已实机启动；整机功能尚待验证"
+              echo "- 闪存按 ECC4、每扇区 spare 28 读写，与 pbs05/uboot-an758x 的 BL2、U-Boot 相同：从 pbs05 迁移可以不重建 UBI"
+              echo "- **从原厂迁移，首次进网页 U-Boot 必须勾「重建 UBI」**，连同固件与 FIP 一次写完：原厂是 ECC8 另一种码字，本 U-Boot 读不出（开机反复报 \`ECC error\`）"
+              echo "- **装过本项目 ECC8 版本的机器，不能在旧版网页里「引导升级」**：旧 U-Boot 按 ECC8 写 fip，新 BL2 按 ECC4 读不出、起不来。要像首次迁移一样经串口传入新的 preloader 与 fip，再在新版网页里勾「重建 UBI」连同固件一起写（先备份 factory 卷）"
+              echo "- 改为 ECC4 后尚待实机验证"
               ;;
           esac
           echo LAYOUTEOF

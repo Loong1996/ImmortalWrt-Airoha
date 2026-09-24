@@ -10,7 +10,7 @@ ImmortalWrt for Airoha-based fiber ONTs, with a web U-Boot that flashes and reco
 
 ## Supported models
 
-Nokia XG-040G-MD, Nokia XG-040G-MF, Nokia XG-140G-MD, Nokia XG-140G-MF, Nokia XG-040G-TF, ZNXT ZN504XG-D, ZNXT ZN515XG-D, FiberHome HG5382A (BL2 and U-Boot boot on hardware; coming from stock or pbs05/uboot-an758x, the first install must tick Rebuild UBI and write firmware and FIP together)
+Nokia XG-040G-MD, Nokia XG-040G-MF, Nokia XG-140G-MD, Nokia XG-140G-MF, Nokia XG-040G-TF, ZNXT ZN504XG-D, ZNXT ZN515XG-D, FiberHome HG5382A (flash read and written at ECC4, as pbs05/uboot-an758x does; not yet verified on hardware since the switch to ECC4. Coming from stock, the first install must tick Rebuild UBI and write firmware and FIP together; coming from pbs05 it need not. A unit that ran this project's ECC8 build must change its bootloader over serial and rebuild UBI, like a first install)
 
 ![Web U-Boot](img/web-uboot.png)
 
