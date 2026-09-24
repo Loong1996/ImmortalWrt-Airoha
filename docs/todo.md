@@ -85,4 +85,5 @@ W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补�
 - 补丁 207：`airoha_eth_send()` 等描述符完成从 100 µs 放宽到 10 ms。原来超时返回却不挪 head，下一帧会改写 QDMA 可能还在读的描述符
 - `wr_printf()` 日志满时整行丢弃、之后不再写入，不再留半行
 - 教程线上版要跑 `publish-pages.sh` 才更新
-- 1.0.1 复审修正（immortalwrt `7e5826a6b8`）：重建 UBI 后当场建 env 卷时，去掉 `ubi_create_env` 里的 `|| run ubi_format` 再执行（原来见到它就放弃，而所有板子都带，原厂格式从没存上过）；`/stock` 刷回或普通上传进行中，拒绝 `/envreset`、`/bootonce`、`/netmode`、`/wipecfg`、`/dhcpgw`、`/sfmt`；「自动识别」找到多组或找到与已记录相同的一组时，保留原记录（dd 核对结果与坏块标记交换不再被冲掉）；补丁 204 的 `TCP_SND_WND_SIZE` 注释更新。第一节「重建 UBI 后串口有 `stock flash format saved`」那一条靠的就是第一处
+- 1.0.1 复审修正（immortalwrt `7e5826a6b8`、`5ee749ce78`）：重建 UBI 后当场建 env 卷并保存原厂格式——建卷时临时把 `ubi_format` 换成 echo，免得 `|| run ubi_format` 在 BL2 已写、fip 未写时擦 UBI 并重启；保存前把默认环境里有的变量恢复成默认值（带回调的如 `ipaddr` 不动，页面设的保留），否则会把原厂开机时 `web_uboot_no_ubi` 改掉的 `bootmenu_0` 存下去，以后每次开机直奔恢复页、`_firstboot` 不再跑；已存过格式的机器再重建 UBI 也照样保存。上传或 `/stock` 刷回进行中，拒绝 `/envreset`、`/bootonce`、`/netmode`、`/reboot`、`/boot`、`/wipecfg`、`/dhcpgw`、`/sfmt` 与 `/dump`，`/info` 回 503 不再重挂 UBI。「自动识别」找到多组、找到与已记录相同的一组、或已记录的是 dd 核对过的，都保留原记录。补丁 204 的 `TCP_SND_WND_SIZE` 注释更新
+  - 真机：原厂 HG5382A 首次迁移勾「重建 UBI」，串口有 `stock flash format saved`；重启后进的是「Initialize environment」而不是恢复页，`factory` 卷建出来，`fw_printenv web_uboot_stock_nand` 有值；已迁移的机器再重建一次 UBI，重启后该变量仍在
