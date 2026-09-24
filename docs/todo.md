@@ -65,6 +65,7 @@ W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补�
 ### 低
 
 - [ ] ATF 补丁 100 有三颗芯片（MT29F02G08ABAGA、MT29F08G08ABACA、TC58NVG4S0HTA20）的控制器 ECC 写成 12，U-Boot 与 Linux 按芯片要求选 8。12 与 pbs05 的 `tf-a/.../parallel_nand_flash_table.c` 逐字一致，他的 U-Boot 同样选 8，所以他那边也不一致；这张表对 W29N02KVSIAF 写的是 4、原厂实为 8，不能当原厂依据。目前没有板子用这三颗；有了先看原厂引导打印的 ECC，再让三级统一
+  - 2026-09-25 复审（`5e364053d6`..`47e5f400be`）再次确认：U-Boot 补丁 123 没有这三颗的完整 ID，退回 ONFI 声明的强度，`airoha_nfc_calc_ecc_strength()` 取不低于它的最小一档即 8，按 ECC8 写 fip 卷；BL2 按 ECC12 读，这类板子第一次迁移后就起不来。修法二选一：ATF 补丁 100 的表改成 8，或在 U-Boot 补丁 123（Linux 补丁 904 同步）补上 ECC12 的完整 ID
 
 ## 五、已写好、没上真机
 
@@ -84,3 +85,4 @@ W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补�
 - 补丁 207：`airoha_eth_send()` 等描述符完成从 100 µs 放宽到 10 ms。原来超时返回却不挪 head，下一帧会改写 QDMA 可能还在读的描述符
 - `wr_printf()` 日志满时整行丢弃、之后不再写入，不再留半行
 - 教程线上版要跑 `publish-pages.sh` 才更新
+- 1.0.1 复审修正（immortalwrt `7e5826a6b8`）：重建 UBI 后当场建 env 卷时，去掉 `ubi_create_env` 里的 `|| run ubi_format` 再执行（原来见到它就放弃，而所有板子都带，原厂格式从没存上过）；`/stock` 刷回或普通上传进行中，拒绝 `/envreset`、`/bootonce`、`/netmode`、`/wipecfg`、`/dhcpgw`、`/sfmt`；「自动识别」找到多组或找到与已记录相同的一组时，保留原记录（dd 核对结果与坏块标记交换不再被冲掉）；补丁 204 的 `TCP_SND_WND_SIZE` 注释更新。第一节「重建 UBI 后串口有 `stock flash format saved`」那一条靠的就是第一处
