@@ -433,6 +433,7 @@ Handing out DHCP leases from 192.168.1.1</div>
     <div class="note danger"><b>写入期间不能断电。</b></div>
     <p>重启后灯灭了很久还没进系统：小概率是卡在了 <code>Press x</code> 等按键，直接重新上电即可。</p>
     <div class="note">重建 UBI 会清掉出厂 MAC，设备改用随机 MAC。想要回真实 MAC，用<a href="#vol">「按卷写入」</a>写回备份的 <code>ri</code>（ZN504XG-D 是 <code>reservearea</code>，HG5382A 是 <code>factory.bin</code>，都写进 <code>factory</code> 卷）。从 pbs05 迁来的 ZN504XG-D，重建前先在「备份下载」里存下 <code>factory</code> 卷；HG5382A 要在迁移前用 pbs05 的恢复页下载。</div>
+    <div class="note warn"><b>从 pbs05/uboot-an758x 换过来、没勾「重建 UBI」的</b>：两边的环境变量都存在 <code>ubootenv</code> 卷里，新 U-Boot 会接着用他留下的 <code>bootcmd</code>、<code>boot_production</code>，第一次开机的初始化也被跳过（Nokia 上不会建 <code>ri</code>、<code>bosa</code> 卷）。所以写完先别点「立即重启」：到恢复页「U-Boot 环境变量」里点「恢复默认」，再重启。它只换成本版 U-Boot 的默认值，出厂 MAC、固件和用户配置都不动。勾过「重建 UBI」的不用管，环境卷是新建的。</div>
   </section>
 
   <div class="chap" id="ch3"><span class="cn">3</span><b>日常使用</b><small>只要浏览器</small></div>

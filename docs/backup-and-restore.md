@@ -217,6 +217,24 @@ dd if=/dev/mtd7 bs=128k | nc 192.168.1.100 5555
 
 先用 `busybox --list | tr ' ' '\n' | grep -E '^(nc|tftp|wget)$'` 确认可用工具。`tftp` 走 UDP 传大文件不可靠，不推荐。
 
+### ZN504XG-D：从整片备份里取出 `reservearea`
+
+上面的分区表是 XG-040G-MD 的。ZN504XG-D 的出厂数据（MAC、PON 序列号、光模块校准）在原厂的 `reservearea` 分区里，刷机后要把它写进 `factory` 卷（`0x240000` 字节）。难点是**整片备份里看不出它从哪开始**：原厂内核开机时才排分区，排的时候还跳过坏块，每台机器可能不一样。
+
+`scripts/find-reservearea.py` 按内容找，不靠偏移。锚点有两个：分区内 `0x141010` 的型号 `ZN504XG-D` 加 `0x141024` 的 12 位十六进制 MAC（第 10 个擦除块），`0x1c0400` 的光模块 A0/A2 校准页（第 14 个擦除块）。两者都必须落在 128 KiB 擦除块内的对应位置才算数；两块之间多出来的块当作坏块跳过。
+
+```sh
+python3 scripts/find-reservearea.py all_flash.bin                      # 只找，打印起点、置信度和每块的情况
+python3 scripts/find-reservearea.py all_flash.bin -o reservearea.bin   # 找到后导出 0x240000 字节
+```
+
+导出的 `reservearea.bin` 在网页 U-Boot 的「按卷写入」里写进 `factory` 卷，重启后串口应有 `MAC … from factory volume`。MAC 默认打码中间两字节，方便贴日志，要看全的加 `--show-mac`。
+
+* **第 10 块之前没有锚点。** 坏块若落在这一段，从数据上看不出来，起点会偏一块。固件只读第 10 块的 MAC 和第 14 块的校准页，这两块不受影响；想要整份逐字节对齐，就用 `--skip 0x<偏移>` 标出坏块（U-Boot 的 `mtd bad`，或原厂 dmesg 里的 `Bad eraseblock`），或直接用 `--start` 指定起点。
+* **找到多处**且内容不同时不导出，列出候选，由你用 `--start` 选。置信度「低」（只认出校准页）时也不导出，确认后加 `--force`。
+* **一处都找不到、整片几乎都是 UBI 头**：UBI 之外的原厂分区已经被擦了。U-Boot 或内核挂载覆盖整片的 `ubi` 分区时，会把不认识的块擦掉写上 UBI 头，`reservearea` 也在其中。这种备份里已经没有它，要找挂载之前做的那份。
+* 从 pbs05/ponwrt 迁来的机器，`reservearea` 已经是 `factory` 卷，用「备份下载」直接导出该卷即可，不需要这个脚本。
+
 ## 二、引导程序：tcboot.bin 与 bootext.ram
 
 两个文件均由 [Nwrt](https://nwrt.kuroneko.host/flashdocs/XG-040G-MD.html) 提供（下载地址见 [README](../README.md#刷机之前)），不随本仓库分发。

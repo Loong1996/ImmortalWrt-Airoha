@@ -2,6 +2,14 @@
 
 2026-09-24 整理，列的都是还没做完的。来源：pbs05 兼容性对比、1.0.1 代码审查（整理提交前的 `5e364053d6`..`4f250b18e0`）、HG5382A 的讨论。提交号与文件路径指 [Loong1996/immortalwrt](https://github.com/Loong1996/immortalwrt) 的 `main-airoha-1.0.1` 分支；`uboot-airoha/` 即 `package/boot/uboot-airoha/`。
 
+## 〇、`ubi part` 会擦掉 UBI 以外的原厂裸分区（先定方案）
+
+- [ ] U-Boot 挂 UBI 时，EC 头和 VID 头都认不出的块直接进擦除列表（`drivers/mtd/ubi/attach.c` 约 935–958 行，只有 EC 头完好的才走 `check_corruption()` 保留），U-Boot 里又是当场擦（`wl.c` 的 `schedule_erase()` 直接 `ubi_do_worker()`）。我们的 `ubi` 分区都从 `0x20000` 起（ZN504XG-D 到整片末尾），原厂在这个范围里的裸分区——ZN504 的 `reservearea`、Nokia 原厂引导器的后半截等——第一次 `ubi part ubi` 就没了，早于「没有 fip 卷就不写」的判断，也早于用户在恢复页做备份。
+  - 证据：`znxt-zn504xg-d-flash-0x0-0x10000000.bin`（0.3.0 装过）里原厂 UBI 只占 `0x66c0000–0xd6c0000`，其余 1151 块全是 EC 17、无 VID、内容全 FF，也就是被 UBI 当作垃圾擦过；`reservearea` 已不在其中
+  - 1.0.1 的 `policy-foreign.env` / `policy-factory.env` 里 `_firstboot` 第一步仍是 `ubi part ubi`，`/info` 等接口也会挂 UBI
+  - 方向：挂载时把「两个头都认不出、内容不全是 FF」的块单独计数，超过几块就拒绝挂载、不擦，直接进恢复页让用户先整片备份；「重建 UBI」先 `mtd erase` 再挂，不受影响。要上真机（原厂 ZN504 或原厂 Nokia）确认
+  - `docs/uboot-http-recovery.md` 里「ZN504 的原厂系统本身就是整片 UBI」与这份备份对不上，定了方案一起改
+
 ## 一、HG5382A 并口 NAND：原厂备份与刷回原厂
 
 并口 NAND 的 ECC 由 SoC 控制器按软件设定计算，原厂与我们的设定不同：只读写数据的整片备份在原厂闪存上读出来几乎全是 `0xff`，刷回原厂写进去的原厂读不了。SPI NAND 是芯片自带 ECC，不受影响。
@@ -56,26 +64,15 @@
 ## 三、pbs05 兼容性遗留
 
 - [ ] ZN515XG-D：README 把它列在支持机型里，因为教程写的是「直接用 XG-040G-MD 的固件」。它比 MD 多一块 MT7916 与第二个 USB，MD 固件用不上；装着 pbs05 的 ZN515 U-Boot 时，他的恢复页会以「does not match this board」拒收 MD 固件。待定：README 是否改成「ZN515XG-D（用 XG-040G-MD 固件）」
-- [ ] 换 U-Boot 后清环境变量：两边都把环境存在 `ubootenv`、`ubootenv2`，换 U-Boot 后新旧变量混在一起。现在没有自动重置，从 pbs05 换过来时 `bootcmd`、`boot_production` 仍是他的，首次开机初始化被跳过（Nokia 上不建 `ri`、`bosa`）。待定：只写进教程（换完先执行菜单里的「Reset all settings to factory defaults」），还是让 U-Boot 认出外来环境后自动重置
-- [ ] ZN504XG-D：整片备份里 `reservearea` 的偏移不明，原厂内核运行时才算分区。要原厂的 `/proc/mtd`，或做一个按内容找的工具（`reservearea` 的 `0x141010` 处是 `ZN504XG-D`，只在那一段没有坏块时成立）
 - [ ] 是否告诉 pbs05：PonWrt 内核缺 W29N02KVSIAF 的完整 ID，按 64 字节 OOB 算成 ECC4/spare 16，读不了他 U-Boot 按 spare 28 写的页，在 SIAF 板上起不来——待定
 
 ## 四、1.0.1 审查遗留
 
-### 中
-
-- [ ] 补丁 204 发送超窗：设备回的 SYN-ACK 由 `net_set_ack_options()` 构造，不带窗口缩放选项，但上游 `tcp.c` 记下了对端 SYN 里的 wscale（约 798 行）并拿它左移对端通告的窗口（约 987 行）。对端 8 KB 的窗口被读成 1 MB，204 就连发 16 包，超窗部分被丢弃重传。能自行恢复，浪费带宽。改法：把 `rmt_win_scale` 置 0，或在 SYN-ACK 里带上 wscale 选项。改完 tcpsim 要补对应场景
-
 ### 低
 
 - [ ] ATF 补丁 100 有三颗芯片的 ECC 强度写成 12，U-Boot 与 Linux 用 8；目前没有板子用这三颗
-- [ ] 补丁 102 与 `files/fip/check-bl33.sh` 用的 `BL33_LIMIT`，BL2 的解压函数并不检查，检查的口径不对
-- [ ] `chk_item` 往串口打印中文，违反串口只用英文的约定，i18ncheck 抓不到
 - [ ] `wr_printf` 日志满时会留下半行，目前走不到
 - [ ] `airoha_eth_send` 只等 DMA 100 µs，突发 16 帧时可能丢帧，要上真机看
-- [ ] tcpsim：模拟对端只通告 64 KB 窗口、不带 wscale、没有乱序，覆盖不到上面的超窗问题；`run.sh` 里 `dl-old` 没输出速率时第 4 项检查会误判通过；204 的快速重传没检查 `tcp_send_data()` 的返回值
-- [ ] 丢包重传时 `dump_tx` 可能反复整窗重读闪存，只影响性能
-- [ ] HG5382A 的 dts 注释把芯片 ID 写成 `98:da`，实际是 Winbond `ef:da`
 
 ## 五、已写好、没上真机
 
@@ -85,4 +82,11 @@
 - 出厂卷长度：`/dump?vol=` 导出截到规定长度（Nokia `ri`、`bosa` 为 256 KiB），写入时超出部分全 `0xff` 照收；已装机器上写不存在的出厂卷，空间不够时在上传前拒收
 - TCP 发送窗口补丁 204；DHCP 开机拔插一次端口、REQUEST 回 NAK
 - 第一节的并口 NAND 备份与刷回原厂；带 ECC 读页时 `dma_unmap` 改为等全部扇区 DECDONE 之后
+- 补丁 204：被动建连时清掉对端 SYN 里的窗口缩放（SYN-ACK 不带，按 RFC 7323 两边都不缩放），SYN 自己的窗口不缩放；快速重传时 `tx()` 失败照首发一样复位连接。tcpsim 新增第 5 项（8 KiB 小窗口、应用慢读、带或不带 wscale、丢包、乱序），修前的 204 在这组里掉到约 4 KiB/s、上千段发到窗口外，修后为 0；第 4 项没取到速率时不再误判通过
+- `/dump` 换窗口时往回留 64 KiB 重叠，窗口边上丢的段重传不再把前后两个窗口来回重读；校验和只折叠没算过的部分
+- 系统诊断的串口输出只打英文汇总（不 OK 的按序号列出），i18ncheck 新增一条：函数收到中文参数后不许再把它打到串口
+- BL33 大小检查：BL2 只检查压缩包（缓冲区 0x58000 / pnand 0x80000，减去约 16 KiB 解码器状态），解压后大小它不管（`lzmaBuffToBuffDecompress()` 不看传进去的上限）；`BL33_MAX` 改为 U-Boot 自己的界限 0x1f0000（TEXT_BASE + 2 MiB 以下留 64 KiB 给早期栈与 malloc），补丁 102 去掉不起作用的 `BL33_LIMIT` 放大，`check-bl33.sh` 另查 LZMA 的 lc+lp
+- 换 U-Boot 后清环境变量：只写进教程 2.4（没勾「重建 UBI」、从 pbs05 换过来的，写完先在「U-Boot 环境变量」里「恢复默认」再重启）
+- `scripts/find-reservearea.py`：按内容（第 10 块 `0x1010` 的型号与 MAC、第 14 块 `0x400` 的光模块校准页）从整片备份里找出 ZN504XG-D 的 `reservearea` 并导出 0x240000 字节，能跳过插进来的坏块；手上这份备份里已被擦掉（见第〇节），只用合成数据验证过
+- HG5382A 的 dts 注释改为 Winbond `ef:da`
 - 教程线上版要跑 `publish-pages.sh` 才更新
