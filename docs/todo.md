@@ -1,12 +1,12 @@
 # 待办
 
-2026-09-24 整理，列的都是还没做完的。来源：pbs05 兼容性对比、1.0.1 代码审查（`5e364053d6`..`4f250b18e0`）、HG5382A 的讨论。提交号与文件路径指 [Loong1996/immortalwrt](https://github.com/Loong1996/immortalwrt) 的 `main-airoha-1.0.1` 分支；`uboot-airoha/` 即 `package/boot/uboot-airoha/`。
+2026-09-24 整理，列的都是还没做完的。来源：pbs05 兼容性对比、1.0.1 代码审查（整理提交前的 `5e364053d6`..`4f250b18e0`）、HG5382A 的讨论。提交号与文件路径指 [Loong1996/immortalwrt](https://github.com/Loong1996/immortalwrt) 的 `main-airoha-1.0.1` 分支；`uboot-airoha/` 即 `package/boot/uboot-airoha/`。
 
 ## 一、HG5382A 并口 NAND：原厂备份与刷回原厂
 
 并口 NAND 的 ECC 由 SoC 控制器按软件设定计算，原厂与我们的设定不同：只读写数据的整片备份在原厂闪存上读出来几乎全是 `0xff`，刷回原厂写进去的原厂读不了。SPI NAND 是芯片自带 ECC，不受影响。
 
-已写好、没上真机（`d4766ba122` 驱动、`a814c053ab` 网页）：
+已写好、没上真机（`6f9d7d441b`）：
 
 - 整片备份连 OOB 原样读出：`/dump?oob=1`，每页 2176 字节，整片 272 MiB，按芯片上的字节顺序
 - 原样写回：`/stock?fmt=oob`
@@ -40,10 +40,6 @@
   - C：维持现状，只改注释并在教程里说明
 - 带 OOB 的原样写回会把原厂备份里列 2048 的出厂标记一起写回去，这一点不受影响
 
-### 相关的驱动隐患
-
-- [ ] 并口 NAND 读页时 `dma_unmap` 早于等待 DECDONE（`airoha_nfc_read_page_hwecc()` / `airoha_nfc_dma_transfer()`），有可能读到还没纠错的数据，没证实。原厂格式识别和按格式读都走这条路径，真机上若识别结果不稳要先查这里
-
 ## 二、HG5382A：ECC4/ECC8 自动兼容（W29N02KVSIAF）
 
 原厂和我们都用 ECC8，pbs05 的 BL2 与 U-Boot 用 ECC4；两边 spare 都是 28、驱动相同，只差校验码长度。PonWrt 内核没有这颗芯片的完整 ID，在 SIAF 板上本来就挂不上 UBI，所以 pbs05 写过的 SIAF 板上基本只有他 U-Boot 写的 ECC4 页。目标：这种 UBI 不用重建，`factory` 卷原地保留。
@@ -60,7 +56,7 @@
 ## 三、pbs05 兼容性遗留
 
 - [ ] ZN515XG-D：README 把它列在支持机型里，因为教程写的是「直接用 XG-040G-MD 的固件」。它比 MD 多一块 MT7916 与第二个 USB，MD 固件用不上；装着 pbs05 的 ZN515 U-Boot 时，他的恢复页会以「does not match this board」拒收 MD 固件。待定：README 是否改成「ZN515XG-D（用 XG-040G-MD 固件）」
-- [ ] 换 U-Boot 后清环境变量：两边都把环境存在 `ubootenv`、`ubootenv2`，换 U-Boot 后新旧变量混在一起。现在只有 Gemtek 整套重置（`web_uboot_foreign_env=reset`），其它机型从 pbs05 换过来时 `bootcmd`、`boot_production` 仍是他的，首次开机初始化被跳过（Nokia 上不建 `ri`、`bosa`）。待定：只写进教程（换完先执行菜单里的「Reset all settings to factory defaults」），还是让 U-Boot 认出外来环境后自动重置
+- [ ] 换 U-Boot 后清环境变量：两边都把环境存在 `ubootenv`、`ubootenv2`，换 U-Boot 后新旧变量混在一起。现在没有自动重置，从 pbs05 换过来时 `bootcmd`、`boot_production` 仍是他的，首次开机初始化被跳过（Nokia 上不建 `ri`、`bosa`）。待定：只写进教程（换完先执行菜单里的「Reset all settings to factory defaults」），还是让 U-Boot 认出外来环境后自动重置
 - [ ] ZN504XG-D：整片备份里 `reservearea` 的偏移不明，原厂内核运行时才算分区。要原厂的 `/proc/mtd`，或做一个按内容找的工具（`reservearea` 的 `0x141010` 处是 `ZN504XG-D`，只在那一段没有坏块时成立）
 - [ ] 是否告诉 pbs05：PonWrt 内核缺 W29N02KVSIAF 的完整 ID，按 64 字节 OOB 算成 ECC4/spare 16，读不了他 U-Boot 按 spare 28 写的页，在 SIAF 板上起不来——待定
 
@@ -69,15 +65,11 @@
 ### 中
 
 - [ ] 补丁 204 发送超窗：设备回的 SYN-ACK 由 `net_set_ack_options()` 构造，不带窗口缩放选项，但上游 `tcp.c` 记下了对端 SYN 里的 wscale（约 798 行）并拿它左移对端通告的窗口（约 987 行）。对端 8 KB 的窗口被读成 1 MB，204 就连发 16 包，超窗部分被丢弃重传。能自行恢复，浪费带宽。改法：把 `rmt_win_scale` 置 0，或在 SYN-ACK 里带上 wscale 选项。改完 tcpsim 要补对应场景
-- [ ] `uboot-airoha/files/web-uboot/env/chainload.env`（约 24、27 行）：串口菜单用 TFTP 写 XR1710G 的 chainloader 槽，既不检查坏块，也不比厂商 bootcmd 的读取长度。`mtd write` 遇到坏块静默跳过、后面整体后移，厂商 U-Boot 按自己的 BMT 读就错了。网页那条路径会拒绝这种情况
-- [ ] W1700K：`package/boot/uboot-tools/uboot-envtools/files/airoha_an7581`（约 28 行）用默认的 `0x1f000`，U-Boot 是 `CONFIG_ENV_SIZE=0x4000`，Linux 下 `fw_setenv` 写的 U-Boot 读不出。XR1710G 加的 `ubootenv_add_ubi_16k` 正好能用
-- [ ] XR1710G 自带 BL2 的板子先写 BL2 再写 FIP：BL2 成了、FIP 失败（比如原厂 UBI 没空间）时厂商引导已经没了，只能 XMODEM 救。应先写 FIP，厂商引导不读 fip 卷
 
 ### 低
 
 - [ ] ATF 补丁 100 有三颗芯片的 ECC 强度写成 12，U-Boot 与 Linux 用 8；目前没有板子用这三颗
 - [ ] 补丁 102 与 `files/fip/check-bl33.sh` 用的 `BL33_LIMIT`，BL2 的解压函数并不检查，检查的口径不对
-- [ ] `chain_vendor_env` 取窗口里第一个 `bootcmd=`，不区分哪份环境是当前有效的；依赖厂商布局，没证实
 - [ ] `chk_item` 往串口打印中文，违反串口只用英文的约定，i18ncheck 抓不到
 - [ ] `wr_printf` 日志满时会留下半行，目前走不到
 - [ ] `airoha_eth_send` 只等 DMA 100 µs，突发 16 帧时可能丢帧，要上真机看
@@ -87,10 +79,10 @@
 
 ## 五、已写好、没上真机
 
-- `1db2384439`：页面忙时误判、红条按部分记账、chain_check 服务端核对厂商读取长度与地址、DHCP 客户端模式保存地址
-- ZN504XG-D 的 `factory` 卷（`e92bd12369`、`83f464d072`）：首次开机建卷；写回 `reservearea.bin` 后重启，串口应有 `MAC fc:d5:86:3f:ce:00 from factory volume` 这类行
-- HG5382A 的 `factory` 卷（`09931002b2`）：MAC 读 `0x2000`
+- `4c213cf74e`：页面忙时误判、红条按部分记账、DHCP 客户端模式保存地址
+- ZN504XG-D 的 `factory` 卷（`5515ad1448`、`4c213cf74e`）：首次开机建卷；写回 `reservearea.bin` 后重启，串口应有 `MAC fc:d5:86:3f:ce:00 from factory volume` 这类行
+- HG5382A 的 `factory` 卷（`5515ad1448`）：MAC 读 `0x2000`
 - 出厂卷长度：`/dump?vol=` 导出截到规定长度（Nokia `ri`、`bosa` 为 256 KiB），写入时超出部分全 `0xff` 照收；已装机器上写不存在的出厂卷，空间不够时在上传前拒收
 - TCP 发送窗口补丁 204；DHCP 开机拔插一次端口、REQUEST 回 NAK
-- 第一节的并口 NAND 备份与刷回原厂
+- 第一节的并口 NAND 备份与刷回原厂；带 ECC 读页时 `dma_unmap` 改为等全部扇区 DECDONE 之后
 - 教程线上版要跑 `publish-pages.sh` 才更新
