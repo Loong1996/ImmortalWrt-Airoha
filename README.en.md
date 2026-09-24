@@ -10,9 +10,9 @@ ImmortalWrt for Airoha-based fiber ONTs, with a web U-Boot that flashes and reco
 
 ## Supported models
 
-Nokia XG-040G-MD, Nokia XG-040G-MF, Nokia XG-140G-MD, Nokia XG-140G-MF, Nokia XG-040G-TF, ZNXT ZN504XG-D, ZNXT ZN515XG-D, FiberHome HG5382A (not yet verified on hardware)
+Nokia XG-040G-MD, Nokia XG-040G-MF, Nokia XG-140G-MD, Nokia XG-140G-MF, Nokia XG-040G-TF, ZNXT ZN504XG-D, ZNXT ZN515XG-D, FiberHome HG5382A (BL2 and U-Boot boot on hardware; coming from stock or pbs05/uboot-an758x, the first install must tick Rebuild UBI and write firmware and FIP together)
 
-Brightspeed / Gemtek XR1710G gets the web U-Boot only (its stock bootloader is locked, so U-Boot lives in the chainloader partition and the stock U-Boot starts it; not yet verified on hardware). For firmware use [naoki66/ImmortalWrt-for-Gemtek-brightspeed](https://github.com/naoki66/ImmortalWrt-for-Gemtek-brightspeed)
+Brightspeed / Gemtek XR1710G gets the web U-Boot only (its stock bootloader is locked, so U-Boot lives in the chainloader partition and the stock U-Boot starts it; an experimental BL2 + FIP is also provided, to replace the stock bootloader on units whose BootROM runs our BL2, with UBI still at 0x700000; not yet verified on hardware). For firmware use [naoki66/ImmortalWrt-for-Gemtek-brightspeed](https://github.com/naoki66/ImmortalWrt-for-Gemtek-brightspeed)
 
 ![Web U-Boot](img/web-uboot.png)
 

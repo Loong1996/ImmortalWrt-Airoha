@@ -296,8 +296,8 @@ details.ver .nw{padding:0 .95rem .95rem;margin:0}
       <tr><td><b>Nokia XG-040G-TF</b></td><td>Airoha AN7581</td><td>XG-040G-TF</td><td><span class="st ok">实机验证</span></td><td>硬件与 MD 相同，但芯片烧了安全启动密钥，BL2 和 U-Boot 都要带证书：必须用 XG-040G-TF 自己的两个引导文件，<b>不能用 MD 的</b>。面板灯与网口灯是蓝色的（光信号灯仍是红的）</td></tr>
       <tr><td><b>ZNXT ZN504XG-D</b></td><td>Airoha AN7581</td><td>ZN504XG-D</td><td><span class="st ok">实机验证</span></td><td>专用固件：闪存与指示灯（蓝色）都和 MD 不同，没有 USB，也没有出厂 MAC</td></tr>
       <tr><td><b>ZNXT ZN515XG-D</b></td><td>Airoha AN7581</td><td>XG-040G-MD</td><td><span class="st ok">实测可用</span></td><td>同上，直接用 XG-040G-MD 的固件</td></tr>
-      <tr><td><b>FiberHome HG5382A</b></td><td>Airoha AN7581</td><td>HG5382A</td><td><span class="st wip">待实机验证</span></td><td>专用固件：闪存是并口 NAND（其它机型都是 SPI NAND），BL2、U-Boot、内核都是它自己的；指示灯蓝色，没有出厂 MAC。原厂备份请在原厂系统里做</td></tr>
-      <tr><td><b>Brightspeed / Gemtek XR1710G</b></td><td>Airoha AN7581</td><td>XR1710G</td><td><span class="st wip">待实机验证</span></td><td><b>只出网页 U-Boot</b>：原厂引导锁着不动，U-Boot 写在 <code>chainloader</code> 分区、由原厂 U-Boot 启动，下载里只有 <code>…-chainloader-slot.bin</code>。固件用 <a href="https://github.com/naoki66/ImmortalWrt-for-Gemtek-brightspeed/releases" target="_blank" rel="noopener">naoki66/ImmortalWrt-for-Gemtek-brightspeed</a>。不用接串口：在用 naoki66 / YYH2913 那份救砖 U-Boot 的，在它的恢复页 <code>uboot</code> 一栏上传即可；之后恢复页在 <code>192.168.1.1</code>，网线插 LAN3 / LAN4。factory 卷（MAC、Wi-Fi 校准）从 vendor 分区的 DSD 区自动重建，重建 UBI 不丢</td></tr>
+      <tr><td><b>FiberHome HG5382A</b></td><td>Airoha AN7581</td><td>HG5382A</td><td><span class="st wip">待实机验证</span></td><td>专用固件：闪存是并口 NAND（其它机型都是 SPI NAND），BL2、U-Boot、内核都是它自己的；指示灯蓝色，没有出厂 MAC。原厂备份请在原厂系统里做。<b>从原厂或 pbs05/uboot-an758x 迁移过来，第一次进网页 U-Boot 必须勾「重建 UBI」</b>，连同固件与 FIP 一次写完：它们留下的 UBI 用的是另一种 ECC 码字，这份 U-Boot 读不出，只写 FIP 的话开机会反复报 <code>ECC error</code></td></tr>
+      <tr><td><b>Brightspeed / Gemtek XR1710G</b></td><td>Airoha AN7581</td><td>XR1710G</td><td><span class="st wip">待实机验证</span></td><td><b>只出网页 U-Boot</b>：原厂引导锁着不动，U-Boot 写在 <code>chainloader</code> 分区、由原厂 U-Boot 启动，下载里的 <code>…-chainloader-slot.bin</code> 就是它。另附 <code>preloader.bin</code> + <code>bl31-uboot.fip</code>，是另一种启动方式（试验）：换掉原厂 BL2、由我们的 BL2 启动，UBI 仍在 0x700000、固件不变；先用 X 模式只进内存试，BootROM 认我们的 BL2 才能用，写之前先备份 0x0–0x20000。固件用 <a href="https://github.com/naoki66/ImmortalWrt-for-Gemtek-brightspeed/releases" target="_blank" rel="noopener">naoki66/ImmortalWrt-for-Gemtek-brightspeed</a>。不用接串口：在用 naoki66 / YYH2913 那份救砖 U-Boot 的，在它的恢复页 <code>uboot</code> 一栏上传即可；之后恢复页在 <code>192.168.1.1</code>，网线插 LAN3 / LAN4。factory 卷（MAC、Wi-Fi 校准）从 vendor 分区的 DSD 区自动重建，重建 UBI 不丢</td></tr>
     </table></div>
     <!-- /models-table -->
     <p class="sec-sub">其他 AN7581 参考设计的机器大概率也能直接用 MD 固件，试过的请到仓库 Issues 或 QQ 群 <b>1092754041</b> 反馈。</p>
@@ -550,7 +550,7 @@ Handing out DHCP leases from 192.168.1.1</div>
   <section id="changelog">
     <div class="sec-head"><span class="ic i6"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 5 5.6.8-4 3.9.9 5.5-4.9-2.6L7.1 17.2l.9-5.5-4-3.9L9.6 7z"/></svg></span><h2><span class="no">4.2</span>更新日志</h2></div>
     <p class="sec-sub">每个版本改了什么、为什么改。点版本号展开。</p>
-    <details class="ver" open><summary><b>1.0.1</b><small>当前版本 · 10 项改动</small></summary>
+    <details class="ver" open><summary><b>1.0.1</b><small>当前版本 · 12 项改动</small></summary>
       <div class="nw">
         <div><b>版本号改为 1.0.1</b><p>恢复页、串口横幅、引导菜单标题和 About 都显示 1.0.1。已经保存过环境的机器下次开机会比对 <code>web_uboot_envver</code>（现为 10），把菜单标题和 About 刷新过来，串口上能看到 <code>Boot menu: refreshing saved environment</code>。</p></div>
         <div><b>ZN504XG-D 的固件文件名加了 <code>-ubi</code></b><p>和 MD、MF、TF 对齐，下载下来的四个文件从 <code>…-znxt_zn504xg-d-…</code> 变成 <code>…-znxt_zn504xg-d-ubi-…</code>。<b>已经在用的 ZN504 升级到这一版，引导菜单里那几项 TFTP 会自己换用新文件名</b>，不用手工改环境变量。网页救砖不受影响 —— 文件是你从浏览器选的，叫什么都行。</p></div>
@@ -561,6 +561,8 @@ Handing out DHCP leases from 192.168.1.1</div>
         <div><b>「启动与重启」多了「清空系统设置」</b><p>删掉 OpenWrt 的设置和装过的软件包，重启后就是全新系统；固件、出厂 MAC 和光模块校准都不动。忘了后台密码、配置改坏，不用再重刷固件。</p></div>
         <div><b>重建 UBI 前提醒备份</b><p>勾了「重建 UBI」而还没备份过，确认框第一行会提醒：原厂系统提醒整片备份，点一下直达「原始区段」的整片下载；迁移过的提醒 <code>ri</code>、<code>bosa</code>。备份过的按本机 MAC 记在浏览器里，下次不再提。</p></div>
         <div><b>支持原厂引导锁着的机型（XR1710G）</b><p>这类机器原厂 BL2 和 U-Boot 动不了，由原厂 U-Boot 从 <code>chainloader</code> 分区启动网页 U-Boot。恢复页看到这个分区就换一套：「引导升级」只剩一个 <code>…-chainloader-slot.bin</code>，上传前核对文件头与坏块，写完回读；「重建 UBI」只要求带上固件，<code>factory</code> 卷（MAC、Wi-Fi 校准）随即从原厂 DSD 区重新生成；「系统诊断」查的是这个分区和原厂 bootcmd，不再查 BL2 与 fip 卷。其它机型不受影响。</p></div>
+        <div><b>XR1710G 也能换成自己的引导（试验）</b><p>另附 <code>preloader.bin</code> 与 <code>bl31-uboot.fip</code>，给 BootROM 认我们 BL2 的机器用：只换掉第一个擦除块里的原厂 BL2，BL2 从原厂位置（0x700000）的 UBI 里的 <code>fip</code> 卷读 U-Boot，DSD、固件、UBI 里的东西都不挪。先用 X 模式只进内存试；两种启动方式来回换，U-Boot 第一次开机会把环境换成默认值，MAC 和网络设置保留。</p></div>
+        <div><b>HG5382A（并口 NAND）</b><p>BL2、U-Boot、内核统一用 ECC8。原厂和 pbs05/uboot-an758x 留下的 UBI 是另一种 ECC 码字，这份 U-Boot 读不出，开机会反复报 <code>ECC error</code>；从它们迁移过来，第一次进恢复页必须勾「重建 UBI」，连同固件与 FIP 一次写完。</p></div>
         <div><b>串口日志只有英文</b><p>TTL 上看到的和「系统诊断 → 串口日志」里的一字不差，英文界面下也不再被翻译得半中半英。原来备份被拒、刷回原厂出错时会往串口打中文，多数终端上是乱码。</p></div>
       </div>
     </details>

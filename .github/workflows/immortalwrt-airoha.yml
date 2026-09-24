@@ -336,13 +336,15 @@ jobs:
               echo "- 自带网页救砖（Airoha Web U-Boot），按住 reset 上电、引导失败或引导菜单第 9 项进入"
               echo "- LAN1 为 2.5G（GPY211），LAN2~4 为千兆；PON 光口未支持"
               echo "- 没有出厂 MAC，网口使用随机 MAC"
-              echo "- **尚未实机验证**"
+              echo "- **从原厂或 pbs05/uboot-an758x 迁移，首次进网页 U-Boot 必须勾「重建 UBI」**，连同固件与 FIP 一次写完：它们留下的 UBI 用的是另一种 ECC 码字，本 U-Boot 读不出（开机反复报 \`ECC error\`）"
+              echo "- BL2 与 U-Boot 已实机启动；整机功能尚待验证"
               ;;
             gemtek_xr1710g-ubi)
               echo "- **本 Release 只有网页救砖 U-Boot，没有固件。** 固件用 [naoki66/ImmortalWrt-for-Gemtek-brightspeed](https://github.com/naoki66/ImmortalWrt-for-Gemtek-brightspeed/releases)，分区布局与这份 U-Boot 一致"
               echo "- 原厂 BL2、U-Boot 锁着不动，由原厂 U-Boot 从 \`chainloader\` 分区（0x600000，1 MiB）启动这份 U-Boot"
               echo "- 附件 \`*-chainloader-slot.bin\` 写进 \`chainloader\` 分区：已经在用 naoki66 / YYH2913 那份救砖 U-Boot 的，在它的恢复页 \`uboot\` 一栏上传即可；在用本 U-Boot 的，走恢复页「引导升级」"
               echo "- 原厂 bootcmd（\`flash read 0x602100 ...; bootm\`）启动 0x2100 处的 FIT；从 0x600000 读的 bootcmd 经前面的 shim 启动，这条路只在 QEMU 里验证过"
+              echo "- 附件 \`preloader.bin\` + \`bl31-uboot.fip\` 是另一种启动方式（试验）：换掉原厂 BL2，UBI 仍在 0x700000、固件不变；先用 X 模式只进内存试，BootROM 认我们的 BL2 才能用"
               echo "- factory 卷（MAC、Wi-Fi 校准）每次开机从 vendor 分区的 DSD 区核对重建，重建 UBI 不丢"
               echo "- 恢复页只走两个千兆口（LAN3 / LAN4），10G 口 U-Boot 不驱动"
               echo "- **尚未实机验证**"
@@ -854,7 +856,9 @@ jobs:
         cat "$OUT"
 
     - name: Pack Bootloader Kit(打包引导程序套件)
-      if: steps.compile.outputs.status == 'success'
+      # XR1710G 也出 preloader / fip，但 UBI 在原厂的 0x700000，这一步按
+      # bl2 128K + ubi 的布局做的迁移镜像对它是错的；它的全都在下面那步打。
+      if: steps.compile.outputs.status == 'success' && env.DEVICE != 'xr1710g'
       run: |
         set -euo pipefail
         cd "$FIRMWARE_PATH"
@@ -1130,9 +1134,10 @@ jobs:
         } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Pack Chainloader Kit(打包链式加载 U-Boot)
-      # 原厂引导锁着的机型（XR1710G）没有 preloader / fip，上面那步跳过了。它要
-      # 刷的是 chainloader 分区的槽位镜像；顺带编出来的固件不发 —— 推荐用的是
-      # naoki66 那份，这里的只是槽位镜像挂着的设备定义。
+      # 原厂引导锁着的机型（XR1710G）刷的是 chainloader 分区的槽位镜像；顺带
+      # 编出来的固件不发 —— 推荐用的是 naoki66 那份，这里的只是槽位镜像挂着的
+      # 设备定义。另有 preloader / fip，给 BootROM 认我们 BL2 的机器换掉原厂
+      # 引导用（UBI 仍在 0x700000），一并打进来。
       if: steps.compile.outputs.status == 'success' && env.DEVICE == 'xr1710g'
       run: |
         set -euo pipefail
@@ -1152,6 +1157,10 @@ jobs:
             sys.exit('槽位镜像 %d 字节，超过 chainloader 分区的 1 MiB' % len(d))
         print('%s: %d 字节，0x0 uImage、0x2100 FIT' % (sys.argv[1], len(d)))
         PY
+
+        BL2=$(ls -1 *-preloader.bin 2>/dev/null | head -n1 || true)
+        FIP=$(ls -1 *-bl31-uboot.fip 2>/dev/null | head -n1 || true)
+        [ -n "$BL2" ] && [ -n "$FIP" ] || { echo "::error::没有生成 preloader.bin / bl31-uboot.fip"; exit 1; }
 
         rm -f *-squashfs-sysupgrade.itb *-initramfs-recovery.itb *.manifest \
               Packages.tar.gz custom-packages.txt
@@ -1174,7 +1183,7 @@ jobs:
 
         KIT="$RELEASE_TAG-bootloader"
         mkdir -p "$KIT"
-        cp "$SLOT" "$KIT/"
+        cp "$SLOT" "$BL2" "$FIP" "$KIT/"
         {
           echo "$MODEL_TAG 网页救砖 U-Boot"
           echo "=================================================================="
@@ -1197,6 +1206,10 @@ jobs:
           echo "      0x0     uImage 包着的小段 shim：给从 0x600000 读的 bootcmd 用"
           echo "      0x2100  FIT，里面是 U-Boot：原厂 bootcmd（flash read 0x602100 ...;"
           echo "              bootm）直接启动它"
+          echo "  $BL2"
+          echo "  $FIP"
+          echo "      另一种启动方式（试验）：换掉原厂 BL2，由我们的 BL2 + U-Boot 启动。只给"
+          echo "      BootROM 认我们 BL2 的机器用，见下面「换掉原厂引导」。"
           echo
           echo "这台只出 U-Boot。原厂 BL2 与 U-Boot 锁着不动，由原厂 U-Boot 启动这一份；"
           echo "固件请用上面 naoki66 的那份，分区布局与这份 U-Boot 一致。"
@@ -1209,6 +1222,21 @@ jobs:
           echo "* 只想先试不写闪存：原厂 U-Boot 串口里"
           echo "      tftpboot 0x81800000 $SLOT"
           echo "      bootm 0x81802100"
+          echo
+          echo "换掉原厂引导（试验，先确认 BootROM 认不认）"
+          echo "--------------------------------------------"
+          echo "只动第一个擦除块（原厂 BL2）：BL2 从 UBI（仍在 0x700000）的 fip 卷读 U-Boot，"
+          echo "DSD、固件、UBI 里的东西都不挪；naoki66 的固件照样能用。"
+          echo "1. 只进内存试跑：串口上电按 x 进 X 模式，XMODEM-1K 发 $BL2；"
+          echo "   看到 \"Press x to load BL31 + U-Boot FIP\" 再按 x 发 $FIP。"
+          echo "   能进 http://192.168.1.1 才说明这台的 BootROM 认我们的 BL2；发完 preloader"
+          echo "   没反应或报认证失败，就只能用上面的链式加载。"
+          echo "2. 能跑再写：先在恢复页「备份下载 → 原始区段」存下 0x0–0x700000（至少"
+          echo "   0x0–0x20000，原厂 BL2 所在块，是回原厂引导的唯一依据），再在「引导升级」"
+          echo "   同时上传这两个文件。"
+          echo "3. 回原厂引导：把备份的 0x0–0x20000 写回第一个擦除块，chainloader 分区里的"
+          echo "   链式加载 U-Boot 还在。"
+          echo "* U-Boot 换了启动方式，第一次开机会把环境换成默认值（MAC、网络设置保留）。"
           echo
           echo "进恢复页"
           echo "--------"
@@ -1237,7 +1265,8 @@ jobs:
         {
           echo "### 🔧 链式加载 U-Boot"
           echo "- \`$SLOT\` — 写进 chainloader 分区"
-          echo "- \`$KIT.zip\` — 同一个文件加说明"
+          echo "- \`$BL2\` + \`$FIP\` — 换掉原厂引导用（试验，先 X 模式只进内存试）"
+          echo "- \`$KIT.zip\` — 以上三个文件加说明"
           echo "- 固件不发布，用 naoki66/ImmortalWrt-for-Gemtek-brightspeed 的"
         } >> "$GITHUB_STEP_SUMMARY"
 

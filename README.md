@@ -10,9 +10,9 @@
 
 ## 支持机型
 
-Nokia XG-040G-MD、Nokia XG-040G-MF、Nokia XG-140G-MD、Nokia XG-140G-MF、Nokia XG-040G-TF、ZNXT ZN504XG-D、ZNXT ZN515XG-D、FiberHome HG5382A（待实机验证）
+Nokia XG-040G-MD、Nokia XG-040G-MF、Nokia XG-140G-MD、Nokia XG-140G-MF、Nokia XG-040G-TF、ZNXT ZN504XG-D、ZNXT ZN515XG-D、FiberHome HG5382A（BL2 与 U-Boot 已实机启动；从原厂或 pbs05/uboot-an758x 迁移，首次须在网页 U-Boot 勾「重建 UBI」连同固件与 FIP 一起刷）
 
-Brightspeed / Gemtek XR1710G 只出网页 U-Boot（原厂引导锁着，U-Boot 写在 chainloader 分区，由原厂 U-Boot 启动；待实机验证），固件用 [naoki66/ImmortalWrt-for-Gemtek-brightspeed](https://github.com/naoki66/ImmortalWrt-for-Gemtek-brightspeed)
+Brightspeed / Gemtek XR1710G 只出网页 U-Boot（原厂引导锁着，U-Boot 写在 chainloader 分区，由原厂 U-Boot 启动；另附试验性的 BL2 + FIP，给 BootROM 认我们 BL2 的机器换掉原厂引导，UBI 仍在 0x700000；待实机验证），固件用 [naoki66/ImmortalWrt-for-Gemtek-brightspeed](https://github.com/naoki66/ImmortalWrt-for-Gemtek-brightspeed)
 
 ![网页 U-Boot](img/web-uboot.png)
 
