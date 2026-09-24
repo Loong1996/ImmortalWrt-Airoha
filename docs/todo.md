@@ -2,13 +2,12 @@
 
 2026-09-24 整理，列的都是还没做完的。来源：pbs05 兼容性对比、1.0.1 代码审查（整理提交前的 `5e364053d6`..`4f250b18e0`）、HG5382A 的讨论。提交号与文件路径指 [Loong1996/immortalwrt](https://github.com/Loong1996/immortalwrt) 的 `main-airoha-1.0.1` 分支；`uboot-airoha/` 即 `package/boot/uboot-airoha/`。
 
-## 〇、`ubi part` 会擦掉 UBI 以外的原厂裸分区（先定方案）
+## 〇、`ubi part` 擦掉原厂裸分区：已改，待真机
 
-- [ ] U-Boot 挂 UBI 时，EC 头和 VID 头都认不出的块直接进擦除列表（`drivers/mtd/ubi/attach.c` 约 935–958 行，只有 EC 头完好的才走 `check_corruption()` 保留），U-Boot 里又是当场擦（`wl.c` 的 `schedule_erase()` 直接 `ubi_do_worker()`）。我们的 `ubi` 分区都从 `0x20000` 起（ZN504XG-D 到整片末尾），原厂在这个范围里的裸分区——ZN504 的 `reservearea`、Nokia 原厂引导器的后半截等——第一次 `ubi part ubi` 就没了，早于「没有 fip 卷就不写」的判断，也早于用户在恢复页做备份。
-  - 证据：`znxt-zn504xg-d-flash-0x0-0x10000000.bin`（0.3.0 装过）里原厂 UBI 只占 `0x66c0000–0xd6c0000`，其余 1151 块全是 EC 17、无 VID、内容全 FF，也就是被 UBI 当作垃圾擦过；`reservearea` 已不在其中
-  - 1.0.1 的 `policy-foreign.env` / `policy-factory.env` 里 `_firstboot` 第一步仍是 `ubi part ubi`，`/info` 等接口也会挂 UBI
-  - 方向：挂载时把「两个头都认不出、内容不全是 FF」的块单独计数，超过几块就拒绝挂载、不擦，直接进恢复页让用户先整片备份；「重建 UBI」先 `mtd erase` 再挂，不受影响。要上真机（原厂 ZN504 或原厂 Nokia）确认
-  - `docs/uboot-http-recovery.md` 里「ZN504 的原厂系统本身就是整片 UBI」与这份备份对不上，定了方案一起改
+- [ ] 补丁 205（immortalwrt `b630f9c59c`）：挂 UBI 时两个头都认不出、又不是全 FF 的块超过 2 块，且卷表里没有 `fip` 卷，就拒绝挂载、什么都不擦。原来 U-Boot 当场把这些块擦掉，我们的 `ubi` 分区从 `0x20000` 起，原厂机器第一次 `ubi part`（开机读环境时就会发生）就丢了 ZN504 的 `reservearea`、Nokia 原厂引导器的后半截，早于用户能备份。证据是那份装过 0.3.0 的 ZN504 整片备份：原厂 UBI 以外 1151 块全是被 UBI 擦过的样子
+  - 真机：一台还是原厂系统的 ZN504 或 Nokia，串口载入后应看到 `PEBs hold data that UBI did not write`，恢复页按没有 UBI 处理；整片备份里原厂裸分区还在；「重建 UBI」照常
+  - tcboot-to-ubi-uboot.bin（UBI 带 fip 卷、后面留着原厂数据）第一次开机仍应照旧擦掉残留、能直接「日常刷机」
+- [ ] `docs/uboot-http-recovery.md` 里「ZN504 的原厂系统本身就是整片 UBI」与那份备份对不上，真机确认后改
 
 ## 一、HG5382A 并口 NAND：原厂备份与刷回原厂
 
@@ -70,9 +69,7 @@
 
 ### 低
 
-- [ ] ATF 补丁 100 有三颗芯片的 ECC 强度写成 12，U-Boot 与 Linux 用 8；目前没有板子用这三颗
-- [ ] `wr_printf` 日志满时会留下半行，目前走不到
-- [ ] `airoha_eth_send` 只等 DMA 100 µs，突发 16 帧时可能丢帧，要上真机看
+- [ ] ATF 补丁 100 有三颗芯片（MT29F02G08ABAGA、MT29F08G08ABACA、TC58NVG4S0HTA20）的控制器 ECC 写成 12，U-Boot 与 Linux 按芯片要求选 8。12 与 pbs05 的 `tf-a/.../parallel_nand_flash_table.c` 逐字一致，他的 U-Boot 同样选 8，所以他那边也不一致；这张表对 W29N02KVSIAF 写的是 4、原厂实为 8，不能当原厂依据。目前没有板子用这三颗；有了先看原厂引导打印的 ECC，再让三级统一
 
 ## 五、已写好、没上真机
 
@@ -89,4 +86,6 @@
 - 换 U-Boot 后清环境变量：只写进教程 2.4（没勾「重建 UBI」、从 pbs05 换过来的，写完先在「U-Boot 环境变量」里「恢复默认」再重启）
 - `scripts/find-reservearea.py`：按内容（第 10 块 `0x1010` 的型号与 MAC、第 14 块 `0x400` 的光模块校准页）从整片备份里找出 ZN504XG-D 的 `reservearea` 并导出 0x240000 字节，能跳过插进来的坏块；手上这份备份里已被擦掉（见第〇节），只用合成数据验证过
 - HG5382A 的 dts 注释改为 Winbond `ef:da`
+- 补丁 207：`airoha_eth_send()` 等描述符完成从 100 µs 放宽到 10 ms。原来超时返回却不挪 head，下一帧会改写 QDMA 可能还在读的描述符
+- `wr_printf()` 日志满时整行丢弃、之后不再写入，不再留半行
 - 教程线上版要跑 `publish-pages.sh` 才更新
