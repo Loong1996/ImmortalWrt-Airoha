@@ -91,7 +91,8 @@ W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补�
 - 1.0.1 复审修正（immortalwrt `7e5826a6b8`、`5ee749ce78`）：重建 UBI 后当场建 env 卷并保存原厂格式——建卷时临时把 `ubi_format` 换成 echo，免得 `|| run ubi_format` 在 BL2 已写、fip 未写时擦 UBI 并重启；保存前把默认环境里有的变量恢复成默认值（带回调的如 `ipaddr` 不动，页面设的保留），否则会把原厂开机时 `web_uboot_no_ubi` 改掉的 `bootmenu_0` 存下去，以后每次开机直奔恢复页、`_firstboot` 不再跑；已存过格式的机器再重建 UBI 也照样保存。上传或 `/stock` 刷回进行中，拒绝 `/envreset`、`/bootonce`、`/netmode`、`/reboot`、`/boot`、`/wipecfg`、`/dhcpgw`、`/sfmt` 与 `/dump`，`/info` 回 503 不再重挂 UBI。「自动识别」找到多组、找到与已记录相同的一组、或已记录的是 dd 核对过的，都保留原记录。补丁 204 的 `TCP_SND_WND_SIZE` 注释更新
   - 真机：原厂 HG5382A 首次迁移勾「重建 UBI」，串口有 `stock flash format saved`；重启后进的是「Initialize environment」而不是恢复页，`factory` 卷建出来，`fw_printenv web_uboot_stock_nand` 有值；已迁移的机器再重建一次 UBI，重启后该变量仍在
 - 恢复页换成液态玻璃主题（immortalwrt `235d1d725a`）：只改 `page.html` 的 CSS，HTML 与脚本不动
-  - 真机：刷 SPI NAND 板子（XG-040G-MF 余量最紧）能正常进恢复页；手机 Safari、Chrome、Firefox 各开一次，浅色深色都看，毛玻璃卡片上的橙色、红色警告字要看得清；上传大固件时页面不卡
+  - 真机：刷 SPI NAND 板子（XG-040G-MF 余量最紧）能正常进恢复页；电脑上 Chrome、Edge、Safari、Firefox 各开一次，浅色深色都看，毛玻璃卡片上的橙色、红色警告字要看得清；上传大固件时页面不卡
   - CI 实测 LZMA 各板多 1.1–1.8 KB（到 `07e4bde87d` 为止），XG-040G-MF 余 3118 B、ZN504XG-D 4695 B、XG-040G-MD 4443 B、XG-040G-TF 4035 B（CI 的 xz 比 OpenWrt 的大 1% 左右，真编余量略多）
   - 深浅色跟随系统（`7b934d8073`、`07e4bde87d`）：没手动选过按系统，开着时系统切换也跟；切回与系统相同的一边即回到跟随。真机：系统深色时首次打开是深色；浏览器禁用网站数据时，英文浏览器仍显示英文
-  - 不做：灵动岛式状态提示、完成时的圆环进度、分段控件滑块动画
+  - 复审修正 `0ffc37f5a4`：焦点框改用 outline（主按钮、危险按钮、侧栏当前项原来被自己的 box-shadow 盖掉）；侧栏描边改用内阴影，矮窗口下滚动不再跟着内容走。真机：电脑上按 Tab 走一遍，每个按钮都有蓝框
+  - 不做：灵动岛式状态提示、完成时的圆环进度、分段控件滑块动画；手机体验不单独考虑（约 95% 用户用电脑）
