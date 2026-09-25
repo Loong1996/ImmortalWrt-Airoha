@@ -92,4 +92,6 @@ W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补�
   - 真机：原厂 HG5382A 首次迁移勾「重建 UBI」，串口有 `stock flash format saved`；重启后进的是「Initialize environment」而不是恢复页，`factory` 卷建出来，`fw_printenv web_uboot_stock_nand` 有值；已迁移的机器再重建一次 UBI，重启后该变量仍在
 - 恢复页换成液态玻璃主题（immortalwrt `235d1d725a`）：只改 `page.html` 的 CSS，HTML 与脚本不动
   - 真机：刷 SPI NAND 板子（XG-040G-MF 余量最紧）能正常进恢复页；手机 Safari、Chrome、Firefox 各开一次，浅色深色都看，毛玻璃卡片上的橙色、红色警告字要看得清；上传大固件时页面不卡
-  - 没做：灵动岛式状态提示、完成时的圆环进度、跟随系统深浅色、分段控件滑块动画（要动 HTML/JS 与 I18N）
+  - CI 实测 LZMA 各板多 1.0–1.5 KB，XG-040G-MF 余 3307 B、ZN504XG-D 4645 B、XG-040G-MD 4599 B、XG-040G-TF 4464 B（CI 的 xz 比 OpenWrt 的大 1% 左右，真编余量略多）
+  - 深浅色跟随系统（`7b934d8073`、`07e4bde87d`）：没手动选过按系统，开着时系统切换也跟；切回与系统相同的一边即回到跟随。真机：系统深色时首次打开是深色；浏览器禁用网站数据时，英文浏览器仍显示英文
+  - 不做：灵动岛式状态提示、完成时的圆环进度、分段控件滑块动画
