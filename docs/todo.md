@@ -92,7 +92,7 @@ W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补�
   - 真机：原厂 HG5382A 首次迁移勾「重建 UBI」，串口有 `stock flash format saved`；重启后进的是「Initialize environment」而不是恢复页，`factory` 卷建出来，`fw_printenv web_uboot_stock_nand` 有值；已迁移的机器再重建一次 UBI，重启后该变量仍在
 - 恢复页换成液态玻璃主题（immortalwrt `235d1d725a`）：只改 `page.html` 的 CSS，HTML 与脚本不动
   - 真机：刷 SPI NAND 板子（XG-040G-MF 余量最紧）能正常进恢复页；电脑上 Chrome、Edge、Safari、Firefox 各开一次，浅色深色都看，毛玻璃卡片上的橙色、红色警告字要看得清；上传大固件时页面不卡
-  - CI 实测 LZMA 各板多 1.1–1.8 KB（到 `07e4bde87d` 为止），XG-040G-MF 余 3118 B、ZN504XG-D 4695 B、XG-040G-MD 4443 B、XG-040G-TF 4035 B（CI 的 xz 比 OpenWrt 的大 1% 左右，真编余量略多）
+  - 编进 U-Boot 的页面去掉 CSS 注释（`a71cf56c0f`、`2673ce3b92`，`page.html` 源码照留）。到 `267751f109` 为止 CI 实测：XG-040G-MF 余 3539 B、ZN504XG-D 4767 B、XG-040G-TF 4589 B、XG-040G-MD 4322 B、HG5382A 约 98 KiB（CI 的 xz 比 OpenWrt 的大 1% 左右，真编余量略多）
   - 深浅色跟随系统（`7b934d8073`、`07e4bde87d`）：没手动选过按系统，开着时系统切换也跟；切回与系统相同的一边即回到跟随。真机：系统深色时首次打开是深色；浏览器禁用网站数据时，英文浏览器仍显示英文
   - 复审修正 `0ffc37f5a4`：焦点框改用 outline（主按钮、危险按钮、侧栏当前项原来被自己的 box-shadow 盖掉）；侧栏描边改用内阴影，矮窗口下滚动不再跟着内容走。真机：电脑上按 Tab 走一遍，每个按钮都有蓝框
   - 不做：灵动岛式状态提示、完成时的圆环进度、分段控件滑块动画；手机体验不单独考虑（约 95% 用户用电脑）
