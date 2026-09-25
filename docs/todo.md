@@ -54,6 +54,7 @@ W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补�
 - [ ] 上真机：串口载入新 preloader 与 fip，BootROM 能起 ECC4 写的 BL2（pbs05 的板子上一直是 ECC4，推断没问题）；日志 `ECC4/512, spare 28/sector`
 - [ ] 一块 pbs05 写过的 SIAF 板：不重建 UBI 能挂上，`factory` 卷原地可读
 - [ ] 装过本项目 ECC8 版本的机器只能走串口换引导再重建 UBI（旧 U-Boot 按 ECC8 写 fip，新 BL2 读不出），Release 说明与教程已写；看要不要在网页上拦
+- [ ] 挂 UBI 前抽样（immortalwrt `227b0a0069`，补丁 205 与并口驱动）：ECC8 写过的机器（原厂或本项目旧版）串口载入 ECC4 的 U-Boot，开机读环境、`_firstboot`、恢复页 `/info` 应各只有十几行 `Uncorrectable ECC error at page … (n of 4 sectors)` 加一行 `… sampled PEBs do not decode with this ECC layout; … refusing to attach, nothing erased`，一秒左右结束，不再刷屏几分钟；识别原厂格式时不再打 ECC 错误。「重建 UBI」后照常挂载
 
 ## 三、pbs05 兼容性遗留
 
