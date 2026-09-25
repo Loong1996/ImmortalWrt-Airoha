@@ -90,3 +90,6 @@ W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补�
 - 教程线上版要跑 `publish-pages.sh` 才更新
 - 1.0.1 复审修正（immortalwrt `7e5826a6b8`、`5ee749ce78`）：重建 UBI 后当场建 env 卷并保存原厂格式——建卷时临时把 `ubi_format` 换成 echo，免得 `|| run ubi_format` 在 BL2 已写、fip 未写时擦 UBI 并重启；保存前把默认环境里有的变量恢复成默认值（带回调的如 `ipaddr` 不动，页面设的保留），否则会把原厂开机时 `web_uboot_no_ubi` 改掉的 `bootmenu_0` 存下去，以后每次开机直奔恢复页、`_firstboot` 不再跑；已存过格式的机器再重建 UBI 也照样保存。上传或 `/stock` 刷回进行中，拒绝 `/envreset`、`/bootonce`、`/netmode`、`/reboot`、`/boot`、`/wipecfg`、`/dhcpgw`、`/sfmt` 与 `/dump`，`/info` 回 503 不再重挂 UBI。「自动识别」找到多组、找到与已记录相同的一组、或已记录的是 dd 核对过的，都保留原记录。补丁 204 的 `TCP_SND_WND_SIZE` 注释更新
   - 真机：原厂 HG5382A 首次迁移勾「重建 UBI」，串口有 `stock flash format saved`；重启后进的是「Initialize environment」而不是恢复页，`factory` 卷建出来，`fw_printenv web_uboot_stock_nand` 有值；已迁移的机器再重建一次 UBI，重启后该变量仍在
+- 恢复页换成液态玻璃主题（immortalwrt `235d1d725a`）：只改 `page.html` 的 CSS，HTML 与脚本不动
+  - 真机：刷 SPI NAND 板子（XG-040G-MF 余量最紧）能正常进恢复页；手机 Safari、Chrome、Firefox 各开一次，浅色深色都看，毛玻璃卡片上的橙色、红色警告字要看得清；上传大固件时页面不卡
+  - 没做：灵动岛式状态提示、完成时的圆环进度、跟随系统深浅色、分段控件滑块动画（要动 HTML/JS 与 I18N）
