@@ -56,6 +56,7 @@ W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补�
 - [ ] 装过本项目 ECC8 版本的机器只能走串口换引导再重建 UBI（旧 U-Boot 按 ECC8 写 fip，新 BL2 读不出），Release 说明与教程已写；看要不要在网页上拦
 - [ ] 挂 UBI 前抽样（immortalwrt `227b0a0069`，补丁 205 与并口驱动）：ECC8 写过的机器（原厂或本项目旧版）串口载入 ECC4 的 U-Boot，开机读环境、`_firstboot`、恢复页 `/info` 应各只有十几行 `Uncorrectable ECC error at page … (n of 4 sectors)` 加一行 `… sampled PEBs do not decode with this ECC layout; … refusing to attach, nothing erased`，一秒左右结束，不再刷屏几分钟；识别原厂格式时不再打 ECC 错误。「重建 UBI」后照常挂载
 - [ ] 别的 ECC 格式写的块不再被擦（immortalwrt `60bf43fc10`，补丁 205、恢复页）：两个头都是 ECC 错误的块数到全部块的 5%（HG5382A 为 102 块）就停扫、拒绝挂载，不管有没有 fip，什么都不擦；恢复页横幅给出备份、重建 UBI、强制挂载（`/ubiforce`，即 `ubi_force=1`）。那台 ECC8/混合状态的 HG5382A 串口载入这版：每次挂载一两秒内以 `refusing to attach` 结束、不再有 `ubi_eba_copy_leb`；强制挂载能挂上就照常；正常 ECC4 机器与 SPI NAND 机器开机不变。原厂格式识别在 ECC8 时期写过的闪存上应报 `former ECC8 format, not stock`
+  - 复审修正 `304ee21c7d`：整片 ECC8（抽样就拒）的机器横幅不给强制挂载、只给备份与重建；混合状态强制挂载成功后弹框要求先重启，重启后开机能读到闪存里的环境变量；`setenv ubi_force 1; ubi part ubi` 之后 `printenv ubi_force` 应为空（用一次即删）；同一片闪存第二次挂载串口应有 `the 8 PEBs checked from the last refusal still fail ECC`、不再扫到 5%；「诊断」体检 UBI 一项说「没有挂载 … 为保护数据一块都没擦」
 
 ## 三、pbs05 兼容性遗留
 
