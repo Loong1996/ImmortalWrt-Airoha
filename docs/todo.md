@@ -52,11 +52,16 @@
 W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补丁 904）都从 ECC8 改为 ECC4、spare 28，与 pbs05 的 BL2 和 U-Boot 相同（数据取反、FDM 8 字节纳入 ECC 本来就一致）。pbs05 自己的内核缺这颗的完整 ID，按 spare 16 读，所以他那边内核读不了他 U-Boot 写的页；我们的 904 保留完整 ID。原厂是 ECC8，照旧要重建 UBI。
 
 - [ ] 上真机：串口载入新 preloader 与 fip，BootROM 能起 ECC4 写的 BL2（pbs05 的板子上一直是 ECC4，推断没问题）；日志 `ECC4/512, spare 28/sector`
+  - 2026-09-26 热重启已过：那台混合状态的 HG5382A 串口载入 `69e7de9f92` 这版，写 BL2 + FIP、重建 UBI、写固件，`resetting` 后 BootROM 起了 ECC4 写的 BL2，BL2 从 UBI 读到 fip（`FIP source: UBI volume`），一路进了系统。还差一次断电冷启动
 - [ ] 一块 pbs05 写过的 SIAF 板：不重建 UBI 能挂上，`factory` 卷原地可读
 - [ ] 装过本项目 ECC8 版本的机器只能走串口换引导再重建 UBI（旧 U-Boot 按 ECC8 写 fip，新 BL2 读不出），Release 说明与教程已写；看要不要在网页上拦
 - [ ] 挂 UBI 前抽样（immortalwrt `227b0a0069`，补丁 205 与并口驱动）：ECC8 写过的机器（原厂或本项目旧版）串口载入 ECC4 的 U-Boot，开机读环境、`_firstboot`、恢复页 `/info` 应各只有十几行 `Uncorrectable ECC error at page … (n of 4 sectors)` 加一行 `… sampled PEBs do not decode with this ECC layout; … refusing to attach, nothing erased`，一秒左右结束，不再刷屏几分钟；识别原厂格式时不再打 ECC 错误。「重建 UBI」后照常挂载
 - [ ] 别的 ECC 格式写的块不再被擦（immortalwrt `60bf43fc10`，补丁 205、恢复页）：两个头都是 ECC 错误的块数到全部块的 5%（HG5382A 为 102 块）就停扫、拒绝挂载，不管有没有 fip，什么都不擦；恢复页横幅给出备份、重建 UBI、强制挂载（`/ubiforce`，即 `ubi_force=1`）。那台 ECC8/混合状态的 HG5382A 串口载入这版：每次挂载一两秒内以 `refusing to attach` 结束、不再有 `ubi_eba_copy_leb`；强制挂载能挂上就照常；正常 ECC4 机器与 SPI NAND 机器开机不变。原厂格式识别在 ECC8 时期写过的闪存上应报 `former ECC8 format, not stock`
   - 复审修正 `304ee21c7d`：整片 ECC8（抽样就拒）的机器横幅不给强制挂载、只给备份与重建；混合状态强制挂载成功后弹框要求先重启，重启后开机能读到闪存里的环境变量；`setenv ubi_force 1; ubi part ubi` 之后 `printenv ubi_force` 应为空（用一次即删）；同一片闪存第二次挂载串口应有 `the 8 PEBs checked from the last refusal still fail ECC`、不再扫到 5%；「诊断」体检 UBI 一项说「没有挂载 … 为保护数据一块都没擦」
+- [ ] 挂载、读取 UBI 不再写闪存（immortalwrt `69e7de9f92`，补丁 208、209、并口驱动、env）：U-Boot 的 UBI 不再当场擦块、搬块，留到第一次写入（写卷、saveenv）时做；ECC 读错每次只打一行、挂载扫描时汇总一行；驱动的 ECC 错误每秒最多一行；`_firstboot` 遇到读得到卷、读不出内容的环境卷不覆盖，进恢复页。HG5382A 混合状态已验证：串口载入挂载只剩三行（`169 PEBs failed ECC in their headers`），没有 `ubi_eba_copy_leb` 与擦块；写入与从闪存启动照常
+  - 还差：SPI NAND 板子开机、saveenv、日常刷机照常；强制挂载后第一次写入（如保存设置）确实擦掉那批块；环境卷读不出时串口有 `The environment volumes are there but do not read back`
+- [ ] 串口载入的 U-Boot 不自动启动闪存系统、不存环境（`ff459e15ed`，补丁 211、`ramboot.c`、`web_uboot_envver` 11）：BL2 经 XMODEM 收的 FIP 在 `0x81800000`，带 BL33 即判为串口载入，判完清掉 FIP 头。HG5382A 已验证：XMODEM 载入打 `Loaded over the serial port`、`Environment not saved`，倒数后直接进恢复页；写入后热重启从闪存启动没被误认、照常起系统
+  - 还差：SPI NAND 板子（BL2 会往同一窗口预读 preloader 自己的 FIP，不含 BL33）正常开机不被误认、XMODEM 载入能认出；断电冷启动；恢复页「启动系统」在串口载入时能起闪存里的系统
 
 ## 三、pbs05 兼容性遗留
 
@@ -98,3 +103,8 @@ W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补�
   - 不做：灵动岛式状态提示、完成时的圆环进度、分段控件滑块动画；手机体验不单独考虑（约 95% 用户用电脑）
   - `3c833f4fe9`：原厂格式参数框默认收起（识别不出、参数不成立时自动展开）；「用 dd 备份核对」改成「自动识别」旁的按钮，选完文件直接核对；去掉「未选择文件」等占位字；刷回原厂说明压成两句。真机（HG5382A）：原厂格式页与刷回原厂选「不带 OOB」时参数都收起成一行；点「用 dd 备份核对」选原厂 dd 备份，结果出在按钮那行；刷回原厂页 1080p 下不用翻就看得到「刷写」
   - 复审修正 `f7da8f0f9c`：自动展开每种情形只开一次（识别不出与参数不成立同时在时不再来回弹）；自动识别、dd 核对、试读、保存一个在跑其余都灰掉。真机：dd 核对进行中其余三个按钮是灰的，完了恢复
+
+## 六、计划
+
+- 原厂系统里一键安装的工具：选机型 → 按步骤经原厂后台开 telnet、su → 传入并起服务 → 页面列出要备份的分区 → 写 BL2 + U-Boot。可参考 pbs05/an758x-stock2ubi（GPL-2.0；加载内核模块把 MTD 设为可写，经原厂驱动的 ECC 写 BL2 与只含 fip 的最小 UBI）。先做 SPI NAND 机型；HG5382A 要先确认原厂内核的 ECC（原厂引导是 ECC8），是 8 就得软件算 ECC4、按原始页写。工具稳定后再把恢复页的原厂格式识别精简成板级固定参数
+- 「开机写保护、UBI 看出是自己的才放开写」的做法改动面太大，已归档在 immortalwrt 本地分支 `archive/flash-readonly`（`c33026d412`，未推送），主线改用 `69e7de9f92`、`ff459e15ed`
