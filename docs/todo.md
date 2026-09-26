@@ -62,6 +62,8 @@ W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补�
   - 还差：SPI NAND 板子开机、saveenv、日常刷机照常；强制挂载后第一次写入（如保存设置）确实擦掉那批块；环境卷读不出时串口有 `The environment volumes are there but do not read back`
 - [ ] 串口载入的 U-Boot 不自动启动闪存系统、不存环境（`ff459e15ed`，补丁 211、`ramboot.c`、`web_uboot_envver` 11）：BL2 经 XMODEM 收的 FIP 在 `0x81800000`，带 BL33 即判为串口载入，判完清掉 FIP 头。HG5382A 已验证：XMODEM 载入打 `Loaded over the serial port`、`Environment not saved`，倒数后直接进恢复页；写入后热重启从闪存启动没被误认、照常起系统
   - 还差：SPI NAND 板子（BL2 会往同一窗口预读 preloader 自己的 FIP，不含 BL33）正常开机不被误认、XMODEM 载入能认出；断电冷启动；恢复页「启动系统」在串口载入时能起闪存里的系统
+  - 复审修正 `f8b0893a8b`：恢复页用 Ctrl-C 退出后，脚本原来会接着往下走——`_firstboot` 走到 `_init_env`，原厂闪存上建卷失败就 `run ubi_format` 擦掉整个 UBI 分区（原来就有）；串口载入时接着 `run boot_ubi` 起闪存系统。改为 `_firstboot` 用 if / elif / else（串口载入、挂不上 UBI、没有 fip、环境卷读不出各进恢复页，退出即结束），串口载入的判断挪到 `boot_ubi`，恢复页「启动系统」改跑 `boot_production`，`web_uboot_envver` 12。sandbox 里七种情形跑过；HG5382A 串口载入这版认得出、刷新环境不保存（那次按着复位键，没走到 `boot_ubi`）
+  - 还差真机：串口载入、不碰复位键，倒数后应先 `off` 再 `not booting the system on flash` 进恢复页；Ctrl-C 一次先试 TFTP（菜单默认项是 boot_default），再 Ctrl-C 回到命令行，全程不起闪存系统；串口载入时点「启动系统」能起；原厂闪存上首次开机在各恢复页按 Ctrl-C 都回到命令行、不擦 UBI
 
 ## 三、pbs05 兼容性遗留
 
