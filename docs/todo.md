@@ -1,10 +1,10 @@
 # 待办
 
-2026-09-24 整理，列的都是还没做完的。来源：pbs05 兼容性对比、1.0.1 代码审查（整理提交前的 `4df0964f94`..`4f250b18e0`）、HG5382A 的讨论。提交号与文件路径指 [Loong1996/immortalwrt](https://github.com/Loong1996/immortalwrt) 的 `main-airoha-1.0.1` 分支；`uboot-airoha/` 即 `package/boot/uboot-airoha/`。
+2026-09-24 整理，列的都是还没做完的。来源：pbs05 兼容性对比、1.0.1 代码审查（整理提交前的 `dffdead4ad`..`4f250b18e0`）、HG5382A 的讨论。提交号与文件路径指 [Loong1996/immortalwrt](https://github.com/Loong1996/immortalwrt) 的 `main-airoha-1.0.1` 分支；`uboot-airoha/` 即 `package/boot/uboot-airoha/`。
 
 ## 〇、`ubi part` 擦掉原厂裸分区：已改，待真机
 
-- [ ] 补丁 205（immortalwrt `4df0964f94`）：挂 UBI 时两个头都认不出、又不是全 FF 的块超过 2 块，且卷表里没有 `fip` 卷，就拒绝挂载、什么都不擦。原来 U-Boot 当场把这些块擦掉，我们的 `ubi` 分区从 `0x20000` 起，原厂机器第一次 `ubi part`（开机读环境时就会发生）就丢了 ZN504 的 `reservearea`、Nokia 原厂引导器的后半截，早于用户能备份。证据是那份装过 0.3.0 的 ZN504 整片备份：原厂 UBI 以外 1151 块全是被 UBI 擦过的样子
+- [ ] 补丁 205（immortalwrt `dffdead4ad`）：挂 UBI 时两个头都认不出、又不是全 FF 的块超过 2 块，且卷表里没有 `fip` 卷，就拒绝挂载、什么都不擦。原来 U-Boot 当场把这些块擦掉，我们的 `ubi` 分区从 `0x20000` 起，原厂机器第一次 `ubi part`（开机读环境时就会发生）就丢了 ZN504 的 `reservearea`、Nokia 原厂引导器的后半截，早于用户能备份。证据是那份装过 0.3.0 的 ZN504 整片备份：原厂 UBI 以外 1151 块全是被 UBI 擦过的样子
   - 真机：一台还是原厂系统的 ZN504 或 Nokia，串口载入后应看到 `PEBs hold data that UBI did not write`，恢复页按没有 UBI 处理；整片备份里原厂裸分区还在；「重建 UBI」照常
   - tcboot-to-ubi-uboot.bin（UBI 带 fip 卷、后面留着原厂数据）第一次开机仍应照旧擦掉残留、能直接「日常刷机」
 - [ ] `docs/uboot-http-recovery.md` 里「ZN504 的原厂系统本身就是整片 UBI」与那份备份对不上，真机确认后改
@@ -13,7 +13,7 @@
 
 并口 NAND 的 ECC 由 SoC 控制器按软件设定计算，原厂与我们的设定不同：只读写数据的整片备份在原厂闪存上读出来几乎全是 `0xff`，刷回原厂写进去的原厂读不了。SPI NAND 是芯片自带 ECC，不受影响。
 
-已写好、没上真机（`4df0964f94`）：
+已写好、没上真机（`dffdead4ad`）：
 
 - 整片备份连 OOB 原样读出：`/dump?oob=1`，每页 2176 字节，整片 272 MiB，按芯片上的字节顺序
 - 原样写回：`/stock?fmt=oob`
@@ -52,17 +52,17 @@
 W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补丁 904）都从 ECC8 改为 ECC4、spare 28，与 pbs05 的 BL2 和 U-Boot 相同（数据取反、FDM 8 字节纳入 ECC 本来就一致）。pbs05 自己的内核缺这颗的完整 ID，按 spare 16 读，所以他那边内核读不了他 U-Boot 写的页；我们的 904 保留完整 ID。原厂是 ECC8，照旧要重建 UBI。
 
 - [ ] 上真机：串口载入新 preloader 与 fip，BootROM 能起 ECC4 写的 BL2（pbs05 的板子上一直是 ECC4，推断没问题）；日志 `ECC4/512, spare 28/sector`
-  - 2026-09-26 热重启已过：那台混合状态的 HG5382A 串口载入的是合并前的 `ce4e3defa2`（本地备份分支 `backup/main-airoha-1.0.1-before-machine-fold`）。同样的改动现在在 `4df0964f94`，写 BL2 + FIP、重建 UBI、写固件，`resetting` 后 BootROM 起了 ECC4 写的 BL2，BL2 从 UBI 读到 fip（`FIP source: UBI volume`），一路进了系统。还差一次断电冷启动
+  - 2026-09-26 热重启已过：那台混合状态的 HG5382A 串口载入的是合并前的 `ce4e3defa2`（本地备份分支 `backup/main-airoha-1.0.1-before-machine-fold`）。同样的改动现在在 `dffdead4ad`（网页 U-Boot）和 `8fb7aa6ee9`（HG5382A），写 BL2 + FIP、重建 UBI、写固件，`resetting` 后 BootROM 起了 ECC4 写的 BL2，BL2 从 UBI 读到 fip（`FIP source: UBI volume`），一路进了系统。还差一次断电冷启动
 - [ ] 一块 pbs05 写过的 SIAF 板：不重建 UBI 能挂上，`factory` 卷原地可读
 - [ ] 装过本项目 ECC8 版本的机器只能走串口换引导再重建 UBI（旧 U-Boot 按 ECC8 写 fip，新 BL2 读不出），Release 说明与教程已写；看要不要在网页上拦
-- [ ] 挂 UBI 前抽样（immortalwrt `4df0964f94`，补丁 205 与并口驱动）：ECC8 写过的机器（原厂或本项目旧版）串口载入 ECC4 的 U-Boot，开机读环境、`_firstboot`、恢复页 `/info` 应各只有十几行 `Uncorrectable ECC error at page … (n of 4 sectors)` 加一行 `… sampled PEBs do not decode with this ECC layout; … refusing to attach, nothing erased`，一秒左右结束，不再刷屏几分钟；识别原厂格式时不再打 ECC 错误。「重建 UBI」后照常挂载
-- [ ] 别的 ECC 格式写的块不再被擦（immortalwrt `4df0964f94`，补丁 205、恢复页）：两个头都是 ECC 错误的块数到全部块的 5%（HG5382A 为 102 块）就停扫、拒绝挂载，不管有没有 fip，什么都不擦；恢复页横幅给出备份、重建 UBI、强制挂载（`/ubiforce`，即 `ubi_force=1`）。那台 ECC8/混合状态的 HG5382A 串口载入这版：每次挂载一两秒内以 `refusing to attach` 结束、不再有 `ubi_eba_copy_leb`；强制挂载能挂上就照常；正常 ECC4 机器与 SPI NAND 机器开机不变。原厂格式识别在 ECC8 时期写过的闪存上应报 `former ECC8 format, not stock`
-  - 复审修正（并进 `4df0964f94`）：整片 ECC8（抽样就拒）的机器横幅不给强制挂载、只给备份与重建；混合状态强制挂载成功后弹框要求先重启，重启后开机能读到闪存里的环境变量；`setenv ubi_force 1; ubi part ubi` 之后 `printenv ubi_force` 应为空（用一次即删）；同一片闪存第二次挂载串口应有 `the 8 PEBs checked from the last refusal still fail ECC`、不再扫到 5%；「诊断」体检 UBI 一项说「没有挂载 … 为保护数据一块都没擦」
-- [ ] 挂载、读取 UBI 不再写闪存（immortalwrt `4df0964f94`，补丁 208、209、并口驱动、env）：U-Boot 的 UBI 不再当场擦块、搬块，留到第一次写入（写卷、saveenv）时做；ECC 读错每次只打一行、挂载扫描时汇总一行；驱动的 ECC 错误每秒最多一行；`_firstboot` 遇到读得到卷、读不出内容的环境卷不覆盖，进恢复页。HG5382A 混合状态已验证：串口载入挂载只剩三行（`169 PEBs failed ECC in their headers`），没有 `ubi_eba_copy_leb` 与擦块；写入与从闪存启动照常
+- [ ] 挂 UBI 前抽样（immortalwrt `dffdead4ad`，补丁 205 与并口驱动）：ECC8 写过的机器（原厂或本项目旧版）串口载入 ECC4 的 U-Boot，开机读环境、`_firstboot`、恢复页 `/info` 应各只有十几行 `Uncorrectable ECC error at page … (n of 4 sectors)` 加一行 `… sampled PEBs do not decode with this ECC layout; … refusing to attach, nothing erased`，一秒左右结束，不再刷屏几分钟；识别原厂格式时不再打 ECC 错误。「重建 UBI」后照常挂载
+- [ ] 别的 ECC 格式写的块不再被擦（immortalwrt `dffdead4ad`，补丁 205、恢复页）：两个头都是 ECC 错误的块数到全部块的 5%（HG5382A 为 102 块）就停扫、拒绝挂载，不管有没有 fip，什么都不擦；恢复页横幅给出备份、重建 UBI、强制挂载（`/ubiforce`，即 `ubi_force=1`）。那台 ECC8/混合状态的 HG5382A 串口载入这版：每次挂载一两秒内以 `refusing to attach` 结束、不再有 `ubi_eba_copy_leb`；强制挂载能挂上就照常；正常 ECC4 机器与 SPI NAND 机器开机不变。原厂格式识别在 ECC8 时期写过的闪存上应报 `former ECC8 format, not stock`
+  - 复审修正（并进 `dffdead4ad`）：整片 ECC8（抽样就拒）的机器横幅不给强制挂载、只给备份与重建；混合状态强制挂载成功后弹框要求先重启，重启后开机能读到闪存里的环境变量；`setenv ubi_force 1; ubi part ubi` 之后 `printenv ubi_force` 应为空（用一次即删）；同一片闪存第二次挂载串口应有 `the 8 PEBs checked from the last refusal still fail ECC`、不再扫到 5%；「诊断」体检 UBI 一项说「没有挂载 … 为保护数据一块都没擦」
+- [ ] 挂载、读取 UBI 不再写闪存（immortalwrt `dffdead4ad`，补丁 208、209、并口驱动、env）：U-Boot 的 UBI 不再当场擦块、搬块，留到第一次写入（写卷、saveenv）时做；ECC 读错每次只打一行、挂载扫描时汇总一行；驱动的 ECC 错误每秒最多一行；`_firstboot` 遇到读得到卷、读不出内容的环境卷不覆盖，进恢复页。HG5382A 混合状态已验证：串口载入挂载只剩三行（`169 PEBs failed ECC in their headers`），没有 `ubi_eba_copy_leb` 与擦块；写入与从闪存启动照常
   - 还差：SPI NAND 板子开机、saveenv、日常刷机照常；强制挂载后第一次写入（如保存设置）确实擦掉那批块；环境卷读不出时串口有 `The environment volumes are there but do not read back`
-- [ ] 串口载入的 U-Boot 不自动启动闪存系统、不存环境（`4df0964f94`，补丁 211、`ramboot.c`、`web_uboot_envver` 12）：BL2 经 XMODEM 收的 FIP 在 `0x81800000`，带 BL33 即判为串口载入，判完清掉 FIP 头。HG5382A 已验证：XMODEM 载入打 `Loaded over the serial port`、`Environment not saved`，倒数后直接进恢复页；写入后热重启从闪存启动没被误认、照常起系统
+- [ ] 串口载入的 U-Boot 不自动启动闪存系统、不存环境（`dffdead4ad`，补丁 211、`ramboot.c`、`web_uboot_envver` 12）：BL2 经 XMODEM 收的 FIP 在 `0x81800000`，带 BL33 即判为串口载入，判完清掉 FIP 头。HG5382A 已验证：XMODEM 载入打 `Loaded over the serial port`、`Environment not saved`，倒数后直接进恢复页；写入后热重启从闪存启动没被误认、照常起系统
   - 还差：SPI NAND 板子（BL2 会往同一窗口预读 preloader 自己的 FIP，不含 BL33）正常开机不被误认、XMODEM 载入能认出；断电冷启动；恢复页「启动系统」在串口载入时能起闪存里的系统
-  - 复审修正（并进 `4df0964f94`）：恢复页用 Ctrl-C 退出后，脚本原来会接着往下走——`_firstboot` 走到 `_init_env`，原厂闪存上建卷失败就 `run ubi_format` 擦掉整个 UBI 分区（原来就有）；串口载入时接着 `run boot_ubi` 起闪存系统。改为 `_firstboot` 用 if / elif / else（串口载入、挂不上 UBI、没有 fip、环境卷读不出各进恢复页，退出即结束），串口载入的判断挪到 `boot_ubi`，恢复页「启动系统」改跑 `boot_production`，`web_uboot_envver` 12。sandbox 里七种情形跑过；HG5382A 串口载入这版认得出、刷新环境不保存（那次按着复位键，没走到 `boot_ubi`）
+  - 复审修正（并进 `dffdead4ad`）：恢复页用 Ctrl-C 退出后，脚本原来会接着往下走——`_firstboot` 走到 `_init_env`，原厂闪存上建卷失败就 `run ubi_format` 擦掉整个 UBI 分区（原来就有）；串口载入时接着 `run boot_ubi` 起闪存系统。改为 `_firstboot` 用 if / elif / else（串口载入、挂不上 UBI、没有 fip、环境卷读不出各进恢复页，退出即结束），串口载入的判断挪到 `boot_ubi`，恢复页「启动系统」改跑 `boot_production`，`web_uboot_envver` 12。sandbox 里七种情形跑过；HG5382A 串口载入这版认得出、刷新环境不保存（那次按着复位键，没走到 `boot_ubi`）
   - 还差真机：串口载入、不碰复位键，倒数后应先 `off` 再 `not booting the system on flash` 进恢复页；Ctrl-C 一次先试 TFTP（菜单默认项是 boot_default），再 Ctrl-C 回到命令行，全程不起闪存系统；串口载入时点「启动系统」能起；原厂闪存上首次开机在各恢复页按 Ctrl-C 都回到命令行、不擦 UBI
 
 ## 三、pbs05 兼容性遗留
@@ -75,13 +75,13 @@ W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补�
 ### 低
 
 - [ ] ATF 补丁 100 有三颗芯片（MT29F02G08ABAGA、MT29F08G08ABACA、TC58NVG4S0HTA20）的控制器 ECC 写成 12，U-Boot 与 Linux 按芯片要求选 8。12 与 pbs05 的 `tf-a/.../parallel_nand_flash_table.c` 逐字一致，他的 U-Boot 同样选 8，所以他那边也不一致；这张表对 W29N02KVSIAF 写的是 4、原厂实为 8，不能当原厂依据。目前没有板子用这三颗；有了先看原厂引导打印的 ECC，再让三级统一
-  - 2026-09-25 复审（`4df0964f94`..`50ac8c067b`）再次确认：U-Boot 补丁 123 没有这三颗的完整 ID，退回 ONFI 声明的强度，`airoha_nfc_calc_ecc_strength()` 取不低于它的最小一档即 8，按 ECC8 写 fip 卷；BL2 按 ECC12 读，这类板子第一次迁移后就起不来。修法二选一：ATF 补丁 100 的表改成 8，或在 U-Boot 补丁 123（Linux 补丁 904 同步）补上 ECC12 的完整 ID
+  - 2026-09-25 复审（`dffdead4ad`..`8fb7aa6ee9`）再次确认：U-Boot 补丁 123 没有这三颗的完整 ID，退回 ONFI 声明的强度，`airoha_nfc_calc_ecc_strength()` 取不低于它的最小一档即 8，按 ECC8 写 fip 卷；BL2 按 ECC12 读，这类板子第一次迁移后就起不来。修法二选一：ATF 补丁 100 的表改成 8，或在 U-Boot 补丁 123（Linux 补丁 904 同步）补上 ECC12 的完整 ID
 
 ## 五、已写好、没上真机
 
-- `4df0964f94`：页面忙时误判、红条按部分记账、DHCP 客户端模式保存地址
-- ZN504XG-D 的 `factory` 卷（`4df0964f94`）：首次开机建卷；写回 `reservearea.bin` 后重启，串口应有 `MAC fc:d5:86:3f:ce:00 from factory volume` 这类行
-- HG5382A 的 `factory` 卷（`4df0964f94`）：MAC 读 `0x2000`
+- `dffdead4ad`：页面忙时误判、红条按部分记账、DHCP 客户端模式保存地址
+- ZN504XG-D 的 `factory` 卷（`dffdead4ad`）：首次开机建卷；写回 `reservearea.bin` 后重启，串口应有 `MAC fc:d5:86:3f:ce:00 from factory volume` 这类行
+- HG5382A 的 `factory` 卷（`dffdead4ad`）：MAC 读 `0x2000`
 - 出厂卷长度：`/dump?vol=` 导出截到规定长度（Nokia `ri`、`bosa` 为 256 KiB），写入时超出部分全 `0xff` 照收；已装机器上写不存在的出厂卷，空间不够时在上传前拒收
 - TCP 发送窗口补丁 204；DHCP 开机拔插一次端口、REQUEST 回 NAK
 - 第一节的并口 NAND 备份与刷回原厂；带 ECC 读页时 `dma_unmap` 改为等全部扇区 DECDONE 之后
@@ -95,18 +95,18 @@ W29N02KVSIAF 的 BL2（ATF 补丁 100）、U-Boot（补丁 123）、Linux（补�
 - 补丁 207：`airoha_eth_send()` 等描述符完成从 100 µs 放宽到 10 ms。原来超时返回却不挪 head，下一帧会改写 QDMA 可能还在读的描述符
 - `wr_printf()` 日志满时整行丢弃、之后不再写入，不再留半行
 - 教程线上版要跑 `publish-pages.sh` 才更新
-- 1.0.1 复审修正（immortalwrt `4df0964f94`）：重建 UBI 后当场建 env 卷并保存原厂格式——建卷时临时把 `ubi_format` 换成 echo，免得 `|| run ubi_format` 在 BL2 已写、fip 未写时擦 UBI 并重启；保存前把默认环境里有的变量恢复成默认值（带回调的如 `ipaddr` 不动，页面设的保留），否则会把原厂开机时 `web_uboot_no_ubi` 改掉的 `bootmenu_0` 存下去，以后每次开机直奔恢复页、`_firstboot` 不再跑；已存过格式的机器再重建 UBI 也照样保存。上传或 `/stock` 刷回进行中，拒绝 `/envreset`、`/bootonce`、`/netmode`、`/reboot`、`/boot`、`/wipecfg`、`/dhcpgw`、`/sfmt` 与 `/dump`，`/info` 回 503 不再重挂 UBI。「自动识别」找到多组、找到与已记录相同的一组、或已记录的是 dd 核对过的，都保留原记录。补丁 204 的 `TCP_SND_WND_SIZE` 注释更新
+- 1.0.1 复审修正（immortalwrt `dffdead4ad`）：重建 UBI 后当场建 env 卷并保存原厂格式——建卷时临时把 `ubi_format` 换成 echo，免得 `|| run ubi_format` 在 BL2 已写、fip 未写时擦 UBI 并重启；保存前把默认环境里有的变量恢复成默认值（带回调的如 `ipaddr` 不动，页面设的保留），否则会把原厂开机时 `web_uboot_no_ubi` 改掉的 `bootmenu_0` 存下去，以后每次开机直奔恢复页、`_firstboot` 不再跑；已存过格式的机器再重建 UBI 也照样保存。上传或 `/stock` 刷回进行中，拒绝 `/envreset`、`/bootonce`、`/netmode`、`/reboot`、`/boot`、`/wipecfg`、`/dhcpgw`、`/sfmt` 与 `/dump`，`/info` 回 503 不再重挂 UBI。「自动识别」找到多组、找到与已记录相同的一组、或已记录的是 dd 核对过的，都保留原记录。补丁 204 的 `TCP_SND_WND_SIZE` 注释更新
   - 真机：原厂 HG5382A 首次迁移勾「重建 UBI」，串口有 `stock flash format saved`；重启后进的是「Initialize environment」而不是恢复页，`factory` 卷建出来，`fw_printenv web_uboot_stock_nand` 有值；已迁移的机器再重建一次 UBI，重启后该变量仍在
-- 恢复页换成液态玻璃主题（immortalwrt `4df0964f94`）：只改 `page.html` 的 CSS，HTML 与脚本不动
+- 恢复页换成液态玻璃主题（immortalwrt `dffdead4ad`）：只改 `page.html` 的 CSS，HTML 与脚本不动
   - 真机：刷 SPI NAND 板子（XG-040G-MF 余量最紧）能正常进恢复页；电脑上 Chrome、Edge、Safari、Firefox 各开一次，浅色深色都看，毛玻璃卡片上的橙色、红色警告字要看得清；上传大固件时页面不卡
-  - 编进 U-Boot 的页面去掉 CSS 注释（`4df0964f94`，`page.html` 源码照留）。CI 实测：XG-040G-MF 余 3539 B、ZN504XG-D 4767 B、XG-040G-TF 4589 B、XG-040G-MD 4322 B、HG5382A 约 98 KiB（CI 的 xz 比 OpenWrt 的大 1% 左右，真编余量略多）
-  - 深浅色跟随系统（`4df0964f94`）：没手动选过按系统，开着时系统切换也跟；切回与系统相同的一边即回到跟随。真机：系统深色时首次打开是深色；浏览器禁用网站数据时，英文浏览器仍显示英文
-  - 复审修正（并进 `4df0964f94`）：焦点框改用 outline（主按钮、危险按钮、侧栏当前项原来被自己的 box-shadow 盖掉）；侧栏描边改用内阴影，矮窗口下滚动不再跟着内容走。真机：电脑上按 Tab 走一遍，每个按钮都有蓝框
+  - 编进 U-Boot 的页面去掉 CSS 注释（`dffdead4ad`，`page.html` 源码照留）。CI 实测：XG-040G-MF 余 3539 B、ZN504XG-D 4767 B、XG-040G-TF 4589 B、XG-040G-MD 4322 B、HG5382A 约 98 KiB（CI 的 xz 比 OpenWrt 的大 1% 左右，真编余量略多）
+  - 深浅色跟随系统（`dffdead4ad`）：没手动选过按系统，开着时系统切换也跟；切回与系统相同的一边即回到跟随。真机：系统深色时首次打开是深色；浏览器禁用网站数据时，英文浏览器仍显示英文
+  - 复审修正（并进 `dffdead4ad`）：焦点框改用 outline（主按钮、危险按钮、侧栏当前项原来被自己的 box-shadow 盖掉）；侧栏描边改用内阴影，矮窗口下滚动不再跟着内容走。真机：电脑上按 Tab 走一遍，每个按钮都有蓝框
   - 不做：灵动岛式状态提示、完成时的圆环进度、分段控件滑块动画；手机体验不单独考虑（约 95% 用户用电脑）
-  - `4df0964f94`：原厂格式参数框默认收起（识别不出、参数不成立时自动展开）；「用 dd 备份核对」改成「自动识别」旁的按钮，选完文件直接核对；去掉「未选择文件」等占位字；刷回原厂说明压成两句。真机（HG5382A）：原厂格式页与刷回原厂选「不带 OOB」时参数都收起成一行；点「用 dd 备份核对」选原厂 dd 备份，结果出在按钮那行；刷回原厂页 1080p 下不用翻就看得到「刷写」
-  - 复审修正（并进 `4df0964f94`）：自动展开每种情形只开一次（识别不出与参数不成立同时在时不再来回弹）；自动识别、dd 核对、试读、保存一个在跑其余都灰掉。真机：dd 核对进行中其余三个按钮是灰的，完了恢复
+  - `dffdead4ad`：原厂格式参数框默认收起（识别不出、参数不成立时自动展开）；「用 dd 备份核对」改成「自动识别」旁的按钮，选完文件直接核对；去掉「未选择文件」等占位字；刷回原厂说明压成两句。真机（HG5382A）：原厂格式页与刷回原厂选「不带 OOB」时参数都收起成一行；点「用 dd 备份核对」选原厂 dd 备份，结果出在按钮那行；刷回原厂页 1080p 下不用翻就看得到「刷写」
+  - 复审修正（并进 `dffdead4ad`）：自动展开每种情形只开一次（识别不出与参数不成立同时在时不再来回弹）；自动识别、dd 核对、试读、保存一个在跑其余都灰掉。真机：dd 核对进行中其余三个按钮是灰的，完了恢复
 
 ## 六、计划
 
 - 原厂系统里一键安装的工具：选机型 → 按步骤经原厂后台开 telnet、su → 传入并起服务 → 页面列出要备份的分区 → 写 BL2 + U-Boot。可参考 pbs05/an758x-stock2ubi（GPL-2.0；加载内核模块把 MTD 设为可写，经原厂驱动的 ECC 写 BL2 与只含 fip 的最小 UBI）。先做 SPI NAND 机型；HG5382A 要先确认原厂内核的 ECC（原厂引导是 ECC8），是 8 就得软件算 ECC4、按原始页写。工具稳定后再把恢复页的原厂格式识别精简成板级固定参数
-- 「开机写保护、UBI 看出是自己的才放开写」的做法改动面太大，已归档在 immortalwrt 本地分支 `archive/flash-readonly`（`c33026d412`，未推送），主线改用 `4df0964f94`、`4df0964f94`
+- 「开机写保护、UBI 看出是自己的才放开写」的做法改动面太大，已归档在 immortalwrt 本地分支 `archive/flash-readonly`（`c33026d412`，未推送），主线改用 `dffdead4ad`、`dffdead4ad`
