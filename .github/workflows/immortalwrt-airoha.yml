@@ -2,7 +2,7 @@ name: ImmortalWrt-Airoha
 
 # 让 Actions 列表直接显示本次选了什么，省得点进去翻日志里的 env 块。
 # 必须写成一行：折叠标量会把缩进更深的续行当字面量，在 ${{ }} 中间插进换行。
-run-name: "${{ inputs.device == 'all' && '全部机型' || inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || inputs.device == 'xg-040g-tf' && 'XG-040G-TF' || inputs.device == 'zn504xg-d' && 'ZN504XG-D' || inputs.device == 'hg5382a' && 'HG5382A' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ${{ inputs.device_variant }}${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}${{ inputs.release == 'prerelease' && ' · pre-release' || inputs.release == 'artifact' && ' · 不发布' || '' }}"
+run-name: "${{ inputs.device == 'all' && '全部机型' || inputs.device == 'xg-040g-mf' && 'XG-040G-MF' || inputs.device == 'xg-040g-tf' && 'XG-040G-TF' || inputs.device == 'zn504xg-d' && 'ZN504XG-D' || inputs.device == 'hg5382a' && 'HG5382A' || 'XG-040G-MD' }} · ${{ inputs.repo_branch || 'master-airoha' }} · ${{ inputs.dram_size == 'auto' && '自适应内存' || inputs.dram_size }} · ubi${{ inputs.extra_packages != '' && ' · 有附加包' || '' }}${{ inputs.pkg_versions != '' && ' · 指定版本' || '' }}${{ inputs.release == 'prerelease' && ' · pre-release' || inputs.release == 'artifact' && ' · 不发布' || '' }}"
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ on:
         default: 'master-airoha'
         type: string
       device:
-        description: '机型（默认 all：每个机型各起一个 job 并行编，stock 变体只编 MD 与 MF）'
+        description: '机型（默认 all：五个机型各起一个 job 并行编，统一使用 ubi 布局）'
         required: true
         default: 'all'
         type: choice
@@ -24,14 +24,6 @@ on:
           - xg-040g-tf
           - zn504xg-d
           - hg5382a
-      device_variant:
-        description: '设备变体（ubi 推荐：作者魔改 U-Boot，带网页救砖；stock 保留原厂引导）'
-        required: true
-        default: 'ubi'
-        type: choice
-        options:
-          - ubi
-          - stock
       dram_size:
         description: '内存上限（默认自适应，U-Boot 探测实际颗粒；选具体档位只会把系统往小里限，用于对照实验）'
         required: true
@@ -74,7 +66,6 @@ on:
 
 env:
   DRAM_SIZE: ${{ github.event.inputs.dram_size }}
-  DEVICE_VARIANT: ${{ github.event.inputs.device_variant }}
   EXTRA_PACKAGES: ${{ github.event.inputs.extra_packages }}
   PKG_VERSIONS: ${{ github.event.inputs.pkg_versions }}
   REPO_URL: https://github.com/Loong1996/immortalwrt.git
@@ -94,12 +85,11 @@ jobs:
     name: ${{ matrix.device }}
     runs-on: ubuntu-latest
     # 选 all 时每个机型一个 job 并行编；单选时矩阵里只有这一个机型。
-    # TF、ZN504 与 HG5382A 只有 ubi 布局，stock 下的 all 不带它们。
     # 一个机型失败不取消其他机型。
     strategy:
       fail-fast: false
       matrix:
-        device: ${{ fromJSON(inputs.device != 'all' && format('["{0}"]', inputs.device) || inputs.device_variant == 'stock' && '["xg-040g-md","xg-040g-mf"]' || '["xg-040g-md","xg-040g-mf","xg-040g-tf","zn504xg-d","hg5382a"]') }}
+        device: ${{ fromJSON(inputs.device != 'all' && format('["{0}"]', inputs.device) || '["xg-040g-md","xg-040g-mf","xg-040g-tf","zn504xg-d","hg5382a"]') }}
     env:
       DEVICE: ${{ matrix.device }}
     # 发布 Release 需要写权限；仅授予 contents，其余 scope 自动为 none
@@ -216,77 +206,51 @@ jobs:
       run: |
         SOURCE_REPO="$(echo $REPO_URL | awk -F '/' '{print $(NF)}')"
         # 机型决定子目标、配置文件与设备符号：MD 是 an7581，MF 是 an7583。
-        # 变体只有 ubi（作者魔改 U-Boot）与 stock（原厂引导），tcboot 早已移除。
+        # workflow 统一构建 ubi 布局，使用带网页救砖的 U-Boot。
         case "$DEVICE" in
           xg-040g-mf)
             DEVICE_SUBTARGET=an7583
             MODEL_TAG=XG-040G-MF
             CONFIG_FILE=config/xg-040g-mf-master.config
+            DEVICE_SYMBOL=nokia_${DEVICE}-ubi
             ;;
           xg-040g-md)
             DEVICE_SUBTARGET=an7581
             MODEL_TAG=XG-040G-MD
             CONFIG_FILE=config/xg-040g-md-master.config
+            DEVICE_SYMBOL=nokia_${DEVICE}-ubi
             ;;
           xg-040g-tf)
             DEVICE_SUBTARGET=an7581
             MODEL_TAG=XG-040G-TF
             CONFIG_FILE=config/xg-040g-tf-master.config
+            DEVICE_SYMBOL=nokia_${DEVICE}-ubi
             ;;
           zn504xg-d)
             DEVICE_SUBTARGET=an7581
             MODEL_TAG=ZN504XG-D
             CONFIG_FILE=config/zn504xg-d-master.config
+            DEVICE_SYMBOL=znxt_${DEVICE}-ubi
             ;;
           hg5382a)
             DEVICE_SUBTARGET=an7581
             MODEL_TAG=HG5382A
             CONFIG_FILE=config/hg5382a-master.config
+            DEVICE_SYMBOL=fiberhome_${DEVICE}-ubi
             ;;
           *) echo "::error::不支持的 device=$DEVICE"; exit 1 ;;
         esac
-        case "$DEVICE" in
-          xg-040g-tf)
-            [ "$DEVICE_VARIANT" = "ubi" ] || { echo "::error::XG-040G-TF 只有 ubi 布局（不要选 stock）"; exit 1; }
-            DEVICE_SYMBOL=nokia_${DEVICE}-ubi
-            ;;
-          zn504xg-d)
-            [ "$DEVICE_VARIANT" = "ubi" ] || { echo "::error::ZNXT 只有 ubi 布局（不要选 stock）"; exit 1; }
-            DEVICE_SYMBOL=znxt_${DEVICE}-ubi
-            ;;
-          hg5382a)
-            [ "$DEVICE_VARIANT" = "ubi" ] || { echo "::error::HG5382A 只有 ubi 布局（不要选 stock）"; exit 1; }
-            DEVICE_SYMBOL=fiberhome_${DEVICE}-ubi
-            ;;
-          *)
-            case "$DEVICE_VARIANT" in
-              stock)  DEVICE_SYMBOL=nokia_${DEVICE} ;;
-              ubi)    DEVICE_SYMBOL=nokia_${DEVICE}-ubi ;;
-              *)      echo "::error::不支持的 device_variant=$DEVICE_VARIANT"; exit 1 ;;
-            esac
-            ;;
-        esac
-        FLAVOR="$DEVICE_VARIANT"
-        VARIANT_LABEL="$DEVICE_VARIANT"
+        FLAVOR=ubi
+        VARIANT_LABEL=ubi
         echo "CONFIG_FILE=$CONFIG_FILE" >> $GITHUB_ENV
         echo "DEVICE_SYMBOL=$DEVICE_SYMBOL" >> $GITHUB_ENV
         echo "VARIANT_LABEL=$VARIANT_LABEL" >> $GITHUB_ENV
         echo "FLAVOR=$FLAVOR" >> $GITHUB_ENV
         echo "使用配置: $CONFIG_FILE    设备: $DEVICE_SYMBOL"
-        # 刷机方式随变体而变，写进 Release 正文，避免下载者搞错
+        # 各机型的 ubi 刷机说明写进 Release 正文，避免下载者搞错
         {
           echo 'LAYOUT_NOTE<<LAYOUTEOF'
           case "$DEVICE_SYMBOL" in
-            nokia_xg-040g-md)
-              echo "- **保留原厂引导与原厂分区表**，kernel 写入 \`nsb_1\`，rootfs 寄生 \`data\` 分区（129 MB）"
-              echo "- MAC 从原厂 \`ri\` 分区读取，为真实硬件 MAC"
-              echo "- 保留原厂 \`nsb_2\` 备份 bank，是唯一可刷回原厂固件的变体"
-              echo "- 刷机用附件 \`factory-kernel.bin\` + \`factory-rootfs.bin\`"
-              ;;
-            nokia_xg-040g-mf)
-              echo "- **保留原厂引导与原厂分区表**"
-              echo "- 刷机用附件 \`factory-kernel.bin\` + \`factory-rootfs.bin\`"
-              ;;
             nokia_xg-040g-mf-ubi)
               echo "- OpenWrt U-Boot 布局：bl2 128K + ubi 255.875 MB（与 MD 共用 an758x 分区 dtsi）"
               echo "- **会替换引导程序**，附件 \`preloader.bin\` 与 \`bl31-uboot.fip\` 需经 USB-TTL 刷入"
@@ -368,8 +332,7 @@ jobs:
           echo 'DRAM_NOTE<<DRAMNOTEEOF'
           if [ "$DRAM_SIZE" = "auto" ]; then
             echo "- **容量自适应**：U-Boot 探测出实际颗粒后 fixup 进 DTB，\`usable-memory-range\` 放开到 2G 不裁剪"
-            echo "- 除 \`stock\` 外的变体都会做这个探测 —— **512M / 1G / 2G 机器可刷同一份固件**"
-            echo "- \`stock\` 变体用原厂引导程序，是否 fixup 未经验证；若用 stock 且换过颗粒，请改选对应容量重新编译"
+            echo "- ubi 布局的网页 U-Boot 会做这个探测 —— **512M / 1G / 2G 机器可刷同一份固件**"
           else
             echo "- 本固件把系统**上限**限制在 **$DRAM_SIZE**（改的是 \`linux,usable-memory-range\`）"
             echo "- 这只会往小里裁：刷进更小颗粒的机器不会出事，只是不生效；刷进更大颗粒的机器会浪费掉超出部分"
@@ -847,7 +810,7 @@ jobs:
           echo "* Passwall 与 OpenClash 不要同时启用，两者都会接管 nftables 规则链与 dnsmasq 配置。"
           echo "* dnsmasq / SmartDNS / AdGuardHome 默认均监听 53 端口，刷机后需手动规划端口分配。"
           if [ "$DRAM_SIZE" = "auto" ]; then
-            echo "* 本固件内存容量自适应，由引导程序探测上报；除 stock 外的变体可通刷 512M / 1G / 2G 机器。"
+            echo "* 本固件使用 ubi 布局，内存容量由网页 U-Boot 探测上报，可通刷 512M / 1G / 2G 机器。"
           else
             echo "* 本固件的 DTS 已按 $DRAM_SIZE 内存颗粒写死，请勿刷入更小容量颗粒的机器。"
           fi
@@ -864,7 +827,7 @@ jobs:
         BL2=$(ls -1 *-preloader.bin 2>/dev/null | head -n1 || true)
         FIP=$(ls -1 *-bl31-uboot.fip 2>/dev/null | head -n1 || true)
         if [ -z "$BL2" ] || [ -z "$FIP" ]; then
-          echo "::notice::$VARIANT_LABEL 变体保留原厂引导，没有 preloader/fip，跳过本步"
+          echo "::notice::缺少 preloader.bin 或 bl31-uboot.fip，跳过引导程序套件打包"
           exit 0
         fi
         echo "BL2=$BL2"

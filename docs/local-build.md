@@ -72,12 +72,12 @@
 > ./build.sh -h                       # 全部参数
 > ```
 >
-> 参数与 `Run workflow` 的输入一一对应：
+> 参数与 `Run workflow` 的输入对应如下；workflow 固定使用 `ubi`，变体选择仅供本地构建：
 >
 > | 脚本参数 | workflow 输入 | 默认 |
 > | --- | --- | --- |
 > | `-b, --branch` | — | `master-airoha`（唯一维护的线） |
-> | `-v, --variant` | 设备变体 `ubi` / `stock` | `ubi` |
+> | `-v, --variant` | —（CI 固定 `ubi`；本地可选 `ubi` / `stock`） | `ubi` |
 > | `-D, --device` | 机型 `xg-040g-md` / `xg-040g-mf` | `xg-040g-md` |
 > | `-d, --dram` | 内存容量 | `auto` |
 > | `-p, --packages` | 附加软件包 | 空 |
@@ -136,9 +136,9 @@ python3 ../ImmortalWrt-Airoha/scripts/inject-author-info.py
 
 ### 4. 配置
 
-机型决定子目标与配置文件，变体决定设备符号，对应关系和 workflow 的「生成变量」一步一致：
+机型决定子目标与配置文件，变体决定设备符号。workflow 的「生成变量」一步固定使用下表的 `ubi` 设备符号；`stock` 仅供本地手动构建：
 
-| 机型 | 子目标 | 配置文件 | `device_variant` | 设备符号 |
+| 机型 | 子目标 | 配置文件 | 本地变体 | 设备符号 |
 | --- | --- | --- | --- | --- |
 | `xg-040g-md` | `an7581` | `config/xg-040g-md-master.config` | `ubi`（默认，推荐） / `stock` | `nokia_xg-040g-md-ubi` / `nokia_xg-040g-md` |
 | `xg-040g-mf` | `an7583` | `config/xg-040g-mf-master.config` | 同上 | `nokia_xg-040g-mf-ubi` / `nokia_xg-040g-mf` |

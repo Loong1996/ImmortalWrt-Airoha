@@ -24,14 +24,6 @@ on:
         options:
           - xg-040g-md
           - xg-040g-mf
-      device_variant:
-        description: '设备变体（仅刷新索引时有效；ubi 推荐）'
-        required: true
-        default: 'ubi'
-        type: choice
-        options:
-          - ubi
-          - stock
 
 env:
   REPO_URL: https://github.com/Loong1996/immortalwrt.git
@@ -84,16 +76,12 @@ jobs:
 
     - name: Generate Variables(生成变量)
       run: |
-        # 与构建流程保持一致：机型决定子目标与配置文件，变体决定设备符号
+        # 与构建流程保持一致：机型决定子目标与配置文件，固定使用 ubi 设备符号
         case "${{ inputs.device }}" in
           xg-040g-mf) DEVICE_SUBTARGET=an7583; CONFIG_FILE=config/xg-040g-mf-master.config ;;
           *)          DEVICE_SUBTARGET=an7581; CONFIG_FILE=config/xg-040g-md-master.config ;;
         esac
-        case "${{ inputs.device_variant }}" in
-          stock)  DEVICE_SYMBOL=nokia_${{ inputs.device }} ;;
-          ubi)    DEVICE_SYMBOL=nokia_${{ inputs.device }}-ubi ;;
-          *)      echo "::error::不支持的 device_variant"; exit 1 ;;
-        esac
+        DEVICE_SYMBOL=nokia_${{ inputs.device }}-ubi
         echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
         echo "CONFIG_FILE=$CONFIG_FILE" >> $GITHUB_ENV
         echo "DEVICE_SYMBOL=$DEVICE_SYMBOL" >> $GITHUB_ENV

@@ -1,6 +1,6 @@
 # 设备变体（分区布局与刷机方式）
 
-实质是**两种分区布局**。`Run workflow` 时用 **device_variant** 输入选择，workflow 会自动改写 `.config` 的设备符号；两款机型（XG-040G-MD / XG-040G-MF）的变体完全相同。
+实质是**两种分区布局**。`Run workflow` 固定构建 **`ubi`**，不再提供变体选择；workflow 会自动改写 `.config` 的设备符号。下文的 `stock` 布局说明供本地手动构建和已有设备迁移时参考。
 
 新刷请用 **`ubi`（作者魔改 OpenWrt U-Boot，带 Airoha Web U-Boot 网页救砖）**。同一套分区布局也能用上游官方 UBI U-Boot 引导，只是没有网页救砖。
 
