@@ -1,0 +1,10 @@
+#!/bin/sh
+# 千兆 WAN 稳态：开硬件 flow offload，关 fullcone
+# 实测（2026-11-02，同一线路 8 线程）：
+#   hw offload 生效 + fullcone 关闭 -> 826~852 Mbps，pppe 硬件路径，sirq 接近 0
+# fullcone 与 flow offload 互斥，开了 fullcone 会退回软件路径，掉到 300Mbps 量级
+uci -q set firewall.@defaults[0].flow_offloading='1'
+uci -q set firewall.@defaults[0].flow_offloading_hw='1'
+uci -q set firewall.@defaults[0].fullcone='0'
+uci -q commit firewall
+exit 0

@@ -1,0 +1,386 @@
+name: PonWrt-HG5585F
+
+run-name: "PonWrt · ${{ inputs.device }} · ${{ inputs.enable_bpf && 'BPF 开' || 'BPF 关' }}${{ inputs.release == 'artifact' && ' · 仅Artifact' || '' }}"
+
+# 为什么要单独一条流水线：
+# 之前那条 immortalwrt-airoha.yml 编的是 Loong1996/immortalwrt，设备表里只有 HG5382A，
+# 没有 HG5585F-CT。往 HG5585F-CT 上刷会直接被 sysupgrade 拦下来：
+#   "Device fiberhome,hg5585f-ct not supported by this image"
+# HG5585F-CT 的 DTS、PON 驱动、factory 校准分区解析全在 PonWrt（pbs05/ponwrt）里，
+# immortalwrt 主线没有这块，靠改 SUPPORTED_DEVICES 强行刷只会把 DTB 刷错。
+# 所以这条流水线直接编 PonWrt，用它的 configs/an7581.config 当底稿。
+
+on:
+  workflow_dispatch:
+    inputs:
+      # 这里必须写 OpenWrt 的 profile 全名（image/an7581.mk 里的 Device/xxx），
+      # 少写 fiberhome_ 前缀 kconfig 会当成不存在的符号静默丢掉，defconfig 后一个机型都选不中。
+      device:
+        description: '机型 profile。fiberhome_hg5585f-ct 是电信版（当前设备就是它）；-usb-sfp 是插 USB 光模块的变体；_cu 是联通版'
+        required: true
+        default: 'fiberhome_hg5585f-ct'
+        type: choice
+        options:
+          - fiberhome_hg5585f-ct
+          - fiberhome_hg5585f-ct-usb-sfp
+          - fiberhome_hg5585f-cu
+          - fiberhome_hg5382a
+      extra_packages:
+        description: '附加软件包（空格分隔；包名前加 - 表示移除）'
+        required: false
+        default: 'luci-app-passwall luci-i18n-passwall-zh-cn daed daed-geoip daed-geosite luci-app-daed luci-i18n-daed-zh-cn lucky luci-app-ddns luci-i18n-ddns-zh-cn ddns-scripts ddns-scripts-services ddns-scripts-aliyun ddns-scripts-dnspod-v3 ddns-scripts-cloudflare ddns-scripts-cnkuai ddns-scripts-huaweicloud zram-swap kmod-zram'
+        type: string
+      enable_bpf:
+        description: '为 dae/daed 打开内核 BTF / BPF_EVENTS / XDP_SOCKETS。会额外编 dwarves(pahole)，约多 10-20 分钟'
+        required: true
+        default: true
+        type: boolean
+      release:
+        description: 'release：发布到 Release 页；artifact：只留本次运行页，30 天过期'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - artifact
+
+permissions:
+  contents: write
+
+env:
+  TZ: Asia/Shanghai
+  DEVICE: ${{ inputs.device }}
+  EXTRA_PACKAGES: ${{ inputs.extra_packages }}
+  ENABLE_BPF: ${{ inputs.enable_bpf }}
+  SOURCE_REPO: https://github.com/pbs05/ponwrt.git
+  SOURCE_BRANCH: master
+  TARGET_DIR: airoha/an7581
+
+jobs:
+  build:
+    name: ${{ inputs.device }}
+    # 钉死 24.04（noble）：ubuntu-latest 已漂到 26.04，
+    # immortalwrt 系的 init_build_environment.sh 只认 focal/jammy/noble，遇 26.04 直接报错退出。
+    runs-on: ubuntu-24.04
+    # 冷编译（含工具链）实测 ~3 小时；GitHub 单 job 上限 6 小时，留足余量。
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout(取本仓库的 lucky 包)
+        uses: actions/checkout@v7
+
+      - name: Free Disk Space(腾空间)
+        run: |
+          df -h /
+          # 这些目录在 runner 镜像里占了二十多 GB，OpenWrt 全程用不到
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost || true
+          sudo docker image prune -af || true
+          df -h /
+
+      - name: Install Dependencies(装编译依赖)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk \
+            gettext gcc-multilib g++-multilib git gnutls-dev gperf haveged help2man intltool \
+            lib32gcc-s1 libc6-dev-i386 libdw-dev libelf-dev libglib2.0-dev libgmp3-dev \
+            libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev \
+            libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano \
+            ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply \
+            python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfs-tools \
+            subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
+
+      - name: Clone Source(克隆 PonWrt)
+        run: |
+          git clone --depth 1 --branch "$SOURCE_BRANCH" "$SOURCE_REPO" openwrt
+          cd openwrt
+          echo "源码 HEAD : $(git log -1 --format='%h %ad %s' --date=short)"
+          echo "OPENWRT=$PWD" >> "$GITHUB_ENV"
+
+      - name: Patch Target(去无线、开 PPE 统计)
+        run: |
+          cd "$OPENWRT"
+          python3 - <<'PY'
+          import re, sys
+
+          p = "target/linux/airoha/image/an7581.mk"
+          src = open(p, encoding="utf-8").read()
+
+          # 这台 5382A 没有射频硬件（/sys/class/ieee80211 为空、ip link 无 wlan），
+          # 刷的 5585F 固件却在 DEVICE_PACKAGES 里带 wpad-openssl + kmod-mt7915e
+          # + kmod-mt7916-firmware：编译进去后 hostapd/wpa_supplicant 空转，
+          # 实测白占约 12MB 内存。只动 hg5585f-common 这一块，其余机型不受影响。
+          m = re.search(r"(define Device/fiberhome_hg5585f-common\n)(.*?)(\nendef)", src, re.S)
+          if not m:
+              print("::error::an7581.mk 里找不到 fiberhome_hg5585f-common 段")
+              sys.exit(1)
+          head, body, tail = m.groups()
+
+          dm = re.search(r"(  DEVICE_PACKAGES :=)((?:[^\n]*\\\n)*[^\n]*)", body)
+          if not dm:
+              print("::error::该机型段里找不到 DEVICE_PACKAGES")
+              sys.exit(1)
+
+          # 跨行的逻辑行先拼成一行再按词剔除，避免留下只有续行符的空行把 make 断链
+          words = dm.group(2).replace("\\\n", " ").split()
+          drop = {"wpad-openssl", "kmod-mt7915e", "kmod-mt7916-firmware"}
+          kept = [w for w in words if w not in drop]
+          if len(kept) == len(words):
+              print("::warning::DEVICE_PACKAGES 里没找到无线包，可能上游已改")
+          new_assign = dm.group(1) + " " + " ".join(kept) + " \\"
+          # 末尾续行符去掉：变回单行
+          new_assign = new_assign.rstrip(" \\")
+          body = body[:dm.start()] + new_assign + body[dm.end():]
+          src = src[:m.start()] + head + body + tail + src[m.end():]
+
+          if "wpad-openssl" in body or "kmod-mt7915e" in body:
+              print("::error::无线包没删干净，检查 an7581.mk")
+              sys.exit(1)
+          if "AIROHA_USB_STORAGE_PACKAGES" not in body:
+              print("::error::DEVICE_PACKAGES 拼坏了，USB 存储包丢了")
+              sys.exit(1)
+
+          open(p, "w", encoding="utf-8").write(src)
+          print("hg5585f-common DEVICE_PACKAGES 已去掉无线：")
+          print([ln for ln in body.splitlines() if "DEVICE_PACKAGES" in ln][0])
+
+          # PPE 计数统计（ppe0/ppe1 的 packets）。这个符号在 config-6.18 里被显式
+          # 写成 "# ... is not set"，而写死的否定项会盖掉 .config 里的
+          # CONFIG_KERNEL_NET_AIROHA_FLOW_STATS=y，defconfig 必然把它裁回 n。
+          # 所以只能改目标的内核配置片段本身。
+          kp = "target/linux/airoha/an7581/config-6.18"
+          ksrc = open(kp, encoding="utf-8").read()
+          if "CONFIG_NET_AIROHA_FLOW_STATS=y" in ksrc:
+              print("config-6.18: FLOW_STATS 已是 y，跳过")
+          else:
+              ksrc, n = re.subn(r"^# CONFIG_NET_AIROHA_FLOW_STATS is not set$",
+                                "CONFIG_NET_AIROHA_FLOW_STATS=y", ksrc, flags=re.M)
+              if n == 0:
+                  print("::error::config-6.18 里找不到 FLOW_STATS 行，上游可能已改")
+                  sys.exit(1)
+              open(kp, "w", encoding="utf-8").write(ksrc)
+              print("config-6.18: NET_AIROHA_FLOW_STATS -> y")
+          PY
+
+      - name: Overlay Files(首次启动即生效的配置)
+        run: |
+          cd "$OPENWRT"
+          # 仓库里的 files/ 直接叠加到 openwrt/files/，由 image 构建复制进 rootfs：
+          #   etc/sysctl.conf                    千兆 WAN 稳态（16MB 缓冲 / conntrack 8192）
+          #   etc/uci-defaults/96-network-tuning 开硬件 offload、关 fullcone
+          #   etc/uci-defaults/97-zram-lz4       96MB / lz4 / prio 100
+          #   etc/uci-defaults/98-wireless-off   无射频硬件，radio 全部 disabled
+          mkdir -p files
+          cp -a "$GITHUB_WORKSPACE/files/." files/
+          echo "已注入文件："
+          find files -type f | sort
+
+      - name: Install Feeds(装 feeds 与本地 lucky 源)
+        run: |
+          cd "$OPENWRT"
+          # lucky 不在任何公共 feed 里，用 src-link 把本仓库的 packages/ 挂进去
+          echo "src-link lucky $GITHUB_WORKSPACE/packages" >> feeds.conf.default
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          # 确认 lucky 确实被 feed 收录了，否则后面 defconfig 会静默丢掉
+          ./scripts/feeds list -n | grep -qx lucky \
+            || { echo "::error::feeds 里找不到 lucky，检查 packages/lucky/Makefile"; exit 1; }
+          echo "lucky 已进入 feed"
+
+      - name: Generate Config(生成 .config)
+        run: |
+          cd "$OPENWRT"
+          cp configs/an7581.config .config
+          python3 - <<'PY'
+          import os, re
+
+          dev   = os.environ["DEVICE"]
+          extra = os.environ["EXTRA_PACKAGES"].split()
+          bpf   = os.environ["ENABLE_BPF"].lower() == "true"
+
+          lines = open(".config", encoding="utf-8").read().splitlines()
+
+          # 1) 机型：底稿 configs/an7581.config 是作者验证过的 multi-profile 配置，
+          #    默认 5 个机型全选（hg5382a / hg5585f-ct / -ct-usb-sfp / -cu / -cu-usb-sfp）。
+          #    之前试过"删掉其余 4 个只留目标机型"，kconfig 在同一轮里既保留了
+          #    CONFIG_TARGET_DEVICE_* 又重排 choice，defconfig 后目标机型反而没被选中。
+          #    多编的那 4 个机型只是多几份 rootfs（内核与软件包是共用的），
+          #    比跟 kconfig 的 choice 语义较劲划算得多 —— 产物只上传我们这台机器的。
+          keep = list(lines)
+          if not any(re.match(r'^CONFIG_TARGET_DEVICE_airoha_an7581_DEVICE_%s=y$'
+                              % re.escape(dev), ln) for ln in keep):
+              # 底稿没带这个机型时才显式打开（正常情况用不到）
+              keep = [ln for ln in keep
+                      if not re.match(r'^CONFIG_TARGET_airoha_an7581_DEVICE_%s=' % re.escape(dev), ln)]
+              keep.append("CONFIG_TARGET_airoha_an7581_DEVICE_%s=y" % dev)
+
+          # 2) 附加软件包。先删掉同名旧行，再由 defconfig 决定是真选中还是被丢掉。
+          names = [p.lstrip("-") for p in extra]
+          keep = [ln for ln in keep
+                  if not any(re.match(r'^(# )?CONFIG_PACKAGE_%s(=| is not set)' % re.escape(n), ln)
+                             for n in names)]
+          for p in extra:
+              if p.startswith("-"):
+                  keep.append("# CONFIG_PACKAGE_%s is not set" % p[1:])
+              else:
+                  keep.append("CONFIG_PACKAGE_%s=y" % p)
+
+          # 3) dae/daed 的内核前提。base config 里 DEBUG_INFO_REDUCED=y、BPF_EVENTS/XDP_SOCKETS 全没开，
+          #    BTF 更是连行都没有（默认 n）。不补这三项，daed 装上也是运行期报 /sys/kernel/btf 不存在。
+          if bpf:
+              drop = re.compile(r'^(# )?CONFIG_KERNEL_(DEBUG_INFO|DEBUG_INFO_REDUCED|DEBUG_INFO_BTF'
+                                r'|DEBUG_INFO_BTF_MODULES|BPF_EVENTS|XDP_SOCKETS)(=| is not set)')
+              keep = [ln for ln in keep if not drop.match(ln)]
+              keep += [
+                  "CONFIG_KERNEL_DEBUG_INFO=y",
+                  "# CONFIG_KERNEL_DEBUG_INFO_REDUCED is not set",   # BTF 依赖 !REDUCED
+                  "CONFIG_KERNEL_DEBUG_INFO_BTF=y",
+                  "CONFIG_KERNEL_BPF_EVENTS=y",
+                  "CONFIG_KERNEL_XDP_SOCKETS=y",
+              ]
+
+          # 4) zram swap
+          #    CONFIG_ZRAM / CONFIG_ZSMALLOC 由 kmod-zram 的 KCONFIG 带入（=m），
+          #    这里只选压缩后端与默认算法 lz4：没有后端时 zram-swap 会静默回落到 lzo。
+          #    PPE 的 FLOW_STATS 不放这里：config-6.18 里写死的 not set 会盖掉
+          #    CONFIG_KERNEL_*，改由 Patch Target 直接改内核配置片段。
+          for sym in ("CONFIG_KERNEL_ZRAM_BACKEND_LZ4",
+                      "CONFIG_KERNEL_ZRAM_DEF_COMP_LZ4"):
+              keep = [ln for ln in keep
+                      if not re.match(r'^(# )?%s(=| is not set)' % re.escape(sym), ln)]
+              keep.append(sym + "=y")
+
+          open(".config", "w", encoding="utf-8").write("\n".join(keep) + "\n")
+          print("机型      : %s" % dev)
+          print("附加包    : %s" % (" ".join(extra) or "(无)"))
+          print("内核 BPF  : %s" % ("开" if bpf else "关"))
+          PY
+
+      - name: Make Defconfig(展开配置并校验)
+        run: |
+          cd "$OPENWRT"
+          make defconfig
+
+          echo "--- 机型 ---"
+          grep -q "^CONFIG_TARGET_DEVICE_airoha_an7581_DEVICE_${DEVICE}=y" .config \
+            || {
+                 echo "::error::defconfig 后 ${DEVICE} 没被选中"
+                 echo "可选 profile："
+                 grep -oE 'Device/[a-z0-9_-]+' target/linux/airoha/image/an7581.mk | sed 's|Device/|  |'
+                 exit 1
+               }
+          echo "已选定机型: ${DEVICE}"
+
+          echo "--- 附加软件包 ---"
+          python3 - <<'PY'
+          import os, re, sys
+          cfg = open(".config", encoding="utf-8").read()
+          def state(n):
+              for v in ("y", "m"):
+                  if re.search(r'^CONFIG_PACKAGE_%s=%s$' % (re.escape(n), v), cfg, re.M):
+                      return v
+              if re.search(r'^# CONFIG_PACKAGE_%s is not set$' % re.escape(n), cfg, re.M):
+                  return "n"
+              return "?"
+          miss = [n for n in os.environ["EXTRA_PACKAGES"].split() if not n.startswith("-")
+                  and state(n) not in ("y", "m")]
+          for n in os.environ["EXTRA_PACKAGES"].split():
+              print("  %-34s %s" % (n, state(n.lstrip("-"))))
+          if miss:
+              print("::error::这些包没进配置（包名拼错 / 该 feed 没这个包 / 依赖被裁）: %s" % " ".join(miss))
+              sys.exit(1)
+          PY
+
+          if [ "${ENABLE_BPF}" = "true" ]; then
+            echo "--- 内核 BPF ---"
+            for s in DEBUG_INFO DEBUG_INFO_BTF BPF_EVENTS XDP_SOCKETS; do
+              grep -q "^CONFIG_KERNEL_${s}=y" .config \
+                || { echo "::error::CONFIG_KERNEL_${s} 没生效，daed 会跑不起来"; exit 1; }
+            done
+            grep -q "^# CONFIG_KERNEL_DEBUG_INFO_REDUCED is not set" .config \
+              || { echo "::error::DEBUG_INFO_REDUCED 没关掉，BTF 会被 Kconfig 依赖裁掉"; exit 1; }
+            echo "内核 BPF 选项全部就位"
+          fi
+
+          echo "--- zram / PPE 统计 ---"
+          grep -qE "^CONFIG_PACKAGE_kmod-zram=(y|m)$" .config \
+            || { echo "::error::kmod-zram 没进配置，开机没有 zram 设备"; exit 1; }
+          grep -q "^CONFIG_PACKAGE_zram-swap=y$" .config \
+            || { echo "::error::zram-swap 没进配置，开机会没有 swap"; exit 1; }
+          grep -q "^CONFIG_KERNEL_ZRAM_BACKEND_LZ4=y$" .config \
+            || { echo "::error::lz4 后端没打开，zram 会回落到 lzo"; exit 1; }
+          grep -q "^CONFIG_NET_AIROHA_FLOW_STATS=y$" target/linux/airoha/an7581/config-6.18 \
+            || { echo "::error::config-6.18 里 FLOW_STATS 没打开，ppe0/ppe1 计数仍是 0"; exit 1; }
+          echo "zram 与 PPE 统计就位"
+
+      - name: Download Sources(预下载源码包)
+        run: |
+          cd "$OPENWRT"
+          make download -j8 || make download -j1 V=s || echo "部分源码包下载失败，留给编译阶段按需重试"
+
+      - name: Compile(编译固件)
+        run: |
+          cd "$OPENWRT"
+          # 先并行编；挂了再用 -j1 V=s 重跑一遍拿可读的报错（增量，不会从头再来）
+          make -j"$(nproc)" || {
+            echo "::error::并行编译失败，用单线程复跑以获取完整报错"
+            make -j1 V=s 2>&1 | tail -n 300
+            exit 1
+          }
+
+      - name: Collect(整理产物)
+        run: |
+          cd "$OPENWRT/bin/targets/$TARGET_DIR"
+          # 底稿会把 5 个机型全编出来。这里按 profile 名挑出本次要的那台，
+          # 再排掉 -usb-sfp 变体（文件名里 hg5585f-ct 是 hg5585f-ct-usb-sfp 的子串，必须显式排除）。
+          OUT="$GITHUB_WORKSPACE/out"
+          rm -rf "$OUT"; mkdir -p "$OUT"
+          shopt -s nullglob
+          n=0
+          for f in *"${DEVICE}"*; do
+            case "$f" in *usb-sfp*) continue ;; esac
+            cp -v "$f" "$OUT/"; n=$((n+1))
+          done
+          if [ "$n" -eq 0 ]; then
+            echo "::error::没有匹配 ${DEVICE} 的产物，编译可能没覆盖这个机型"
+            ls -la
+            exit 1
+          fi
+          # sha256sums / profiles.json 是整包级别的，重新为挑出来的文件生成一份
+          ( cd "$OUT" && sha256sum * > sha256sums )
+          cp -v profiles.json "$OUT/" 2>/dev/null || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          ls -lh "$OUT" | awk '{print $5"\t"$9}' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          ls -lh "$OUT"
+
+      - name: Upload Artifact(上传 Artifact)
+        uses: actions/upload-artifact@v7
+        with:
+          name: ponwrt-${{ inputs.device }}-${{ github.run_number }}
+          path: out/*
+          if-no-files-found: error
+
+      - name: Publish Release(发布)
+        if: inputs.release == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd "$GITHUB_WORKSPACE/out"
+          TAG="PonWrt-${DEVICE}-$(date +%Y%m%d)-${GITHUB_RUN_NUMBER}"
+          shopt -s nullglob
+          files=( ./* )
+          [ ${#files[@]} -gt 0 ] || { echo "::error::没有可发布的文件"; exit 1; }
+          printf '发布文件:\n'; printf '  %s\n' "${files[@]}"
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TAG" \
+            --notes "PonWrt（pbs05/ponwrt）自动编译
+          - 机型：\`${DEVICE}\`
+          - 附加包：\`${EXTRA_PACKAGES}\`
+          - 内核 BPF：${ENABLE_BPF}
+          - 源码：${SOURCE_REPO} ${SOURCE_BRANCH}" \
+            "${files[@]}"
+          echo "已发布: $TAG"

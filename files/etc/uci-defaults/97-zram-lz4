@@ -1,0 +1,13 @@
+#!/bin/sh
+# 96MB zram swap / lz4 / 优先级 100
+# zram-swap 服务（START=15）从 system.@system[0] 读这三个选项：
+#   zram_size_mb   -> /sys/block/zram0/disksize
+#   zram_comp_algo -> /sys/block/zram0/comp_algorithm
+#   zram_priority  -> swapon -p
+# 96MB 是折中值：lz4 对 Go 堆约 2~2.5:1，写满约吃 40MB 物理内存，
+# 净增 available 约 55MB，刚好覆盖 daed 冷启动峰值（约 120MB）的缺口。
+uci -q set system.@system[0].zram_size_mb='96'
+uci -q set system.@system[0].zram_comp_algo='lz4'
+uci -q set system.@system[0].zram_priority='100'
+uci -q commit system
+exit 0

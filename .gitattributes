@@ -9,3 +9,6 @@ scripts/** text eol=lf
 
 # 补丁文件保持原样，任何转换都可能让它打不上
 *.patch -text
+
+# files/ 下的脚本和配置会被 overlay 进固件，同样必须是 LF
+files/** text eol=lf

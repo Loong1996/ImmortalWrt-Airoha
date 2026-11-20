@@ -1,0 +1,11 @@
+#!/bin/sh
+# 这台 5382A 没有射频硬件（/sys/class/ieee80211 为空、ip link 无 wlan 接口）。
+# an7581.mk 的 hg5585f-common 段已把 wpad-openssl / kmod-mt7915e / mt7916 固件
+# 从 DEVICE_PACKAGES 去掉；这里再把底稿可能带的 wireless 配置置 disabled，
+# 免得 LuCI 无线页在缺 hostapd 时报错。
+[ -f /etc/config/wireless ] || exit 0
+for s in $(uci -q show wireless | sed -n 's/^wireless\.\([^.=]*\)=wifi-device$/\1/p'); do
+	uci -q set wireless.$s.disabled='1'
+done
+uci -q commit wireless
+exit 0

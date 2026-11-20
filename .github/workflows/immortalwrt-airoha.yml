@@ -45,7 +45,9 @@ on:
       extra_packages:
         description: '附加软件包（空格分隔；包名前加 - 表示移除。可用选包页生成）'
         required: false
-        default: ''
+        # 默认预置：passwall + daed + lucky + DDNS，各带中文语言包。
+        # 全清空即回到只编基础配置；想减项就把对应包名前面加 -。
+        default: 'luci-app-passwall luci-i18n-passwall-zh-cn daed daed-geoip daed-geosite luci-app-daed luci-i18n-daed-zh-cn lucky luci-app-ddns luci-i18n-ddns-zh-cn ddns-scripts ddns-scripts-services ddns-scripts-aliyun ddns-scripts-dnspod-v3 ddns-scripts-cloudflare ddns-scripts-cnkuai ddns-scripts-huaweicloud'
         type: string
       pkg_versions:
         description: '⚗️ 实验性 · 指定软件包版本（如 sing-box=1.13.19，跨版本不保证编得过；留空用 config/pkg-versions.txt）'
@@ -92,7 +94,10 @@ env:
 jobs:
   Build:
     name: ${{ matrix.device }}
-    runs-on: ubuntu-latest
+    # 钉死 24.04（noble）：Ubuntu 26.04 上线后 ubuntu-latest 已切到 26.04，
+    # 而 immortalwrt 的 init_build_environment.sh 只认 focal/jammy/noble，
+    # 遇到 26.04 会直接 "[ERROR] Unsupported OS" 退出，编译还没开始就挂了。
+    runs-on: ubuntu-24.04
     # 选 all 时每个机型一个 job 并行编；单选时矩阵里只有这一个机型。
     # TF、ZN504 与 HG5382A 只有 ubi 布局，stock 下的 all 不带它们。
     # 一个机型失败不取消其他机型。
@@ -472,14 +477,17 @@ jobs:
         print("附加软件包 移除: %s" % (" ".join(rm) or "(无)"))
         PY
         . "$RUNNER_TEMP/extra.sh"
-        # dae 依赖 kmod-xdp-sockets-diag（要 KERNEL_XDP_SOCKETS），运行还要 BTF 与 BPF_EVENTS；
-        # 这几项在 airoha 上默认全关，不补的话 defconfig 会把 dae 连同 geoip/geosite/luci 一起丢掉。
-        # 只在选了 dae 时才开：BTF 会让内核变大，还要多编 pahole 和 LLVM
+        # dae / daed 都是 eBPF 实现：要 kmod-xdp-sockets-diag（KERNEL_XDP_SOCKETS）、
+        # 运行期要 BTF 与 BPF_EVENTS。daed 还额外要 kmod-veth —— 它把 dae 核心放进独立
+        # netns，用 veth pair 连回主机（`dae0` 就是这条通道）。
+        # 这几项在 target/linux/generic/config-6.18 里全是 "# ... is not set"，
+        # 不补的话 defconfig 会把 dae/daed 连同 geoip/geosite/luci 一起丢掉。
+        # 只在选了它们时才开：BTF 会让内核变大，还要多编 pahole 和 LLVM。
         for p in $EXTRA_ADD; do
-          case "$p" in dae|dae-*|luci-app-dae) NEED_BPF=1 ;; esac
+          case "$p" in dae|dae-*|luci-app-dae|daed|luci-app-daed) NEED_BPF=1 ;; esac
         done
         if [ -n "$NEED_BPF" ]; then
-          for s in DEBUG_INFO DEBUG_INFO_REDUCED DEBUG_INFO_BTF BPF_EVENTS XDP_SOCKETS; do
+          for s in DEBUG_INFO DEBUG_INFO_REDUCED DEBUG_INFO_BTF BPF_EVENTS XDP_SOCKETS VETH; do
             sed -i -E "/^(# )?CONFIG_KERNEL_${s}(=| is not set)/d" .config
           done
           cat >> .config <<'EOF'
@@ -488,8 +496,9 @@ jobs:
         CONFIG_KERNEL_DEBUG_INFO_BTF=y
         CONFIG_KERNEL_BPF_EVENTS=y
         CONFIG_KERNEL_XDP_SOCKETS=y
+        CONFIG_KERNEL_VETH=m
         EOF
-          echo "已为 dae 打开内核 BTF / BPF_EVENTS / XDP_SOCKETS"
+          echo "已为 dae/daed 打开内核 BTF / BPF_EVENTS / XDP_SOCKETS / VETH"
         fi
         make defconfig
         grep -q "^CONFIG_TARGET_airoha_${DEVICE_SUBTARGET}_DEVICE_${DEVICE_SYMBOL}=y" .config \
